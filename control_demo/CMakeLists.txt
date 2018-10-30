@@ -82,7 +82,7 @@ include_directories(${catkin_INCLUDE_DIRS})
 # add_library(${PROJECT_NAME} <list of source files>)
 
 ## Declare a cpp executable
-add_executable(${PROJECT_NAME} src/control_demo_alg.cpp src/control_demo_alg_node.cpp)
+add_executable(${PROJECT_NAME} src/control_demo_alg.cpp src/control_demo_alg_node.cpp src/state_space_control.cpp) 
 
 # ******************************************************************** 
 #                   Add the libraries

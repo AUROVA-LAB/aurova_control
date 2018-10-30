@@ -21,11 +21,22 @@
 // of the scripts. ROS topics can be easly add by using those scripts. Please
 // refer to the IRI wiki page for more information:
 // http://wikiri.upc.es/index.php/Robotics_Lab
+/**
+ * \file ackermann_to_odom_alg_node.h
+ *
+ *  Created on: 29 Oct 2018
+ *      Author: m.a.munoz
+ */
 
 #ifndef _control_demo_alg_h_
 #define _control_demo_alg_h_
 
 #include <control_demo/ControlDemoConfig.h>
+#include "state_space_control.h"
+#include "ackermann_msgs/AckermannDriveStamped.h"
+#include "geometry_msgs/PoseWithCovarianceStamped.h"
+#include "geometry_msgs/PoseStamped.h"
+#include <tf/tf.h>
 
 //include control_demo_alg main library
 
@@ -36,96 +47,121 @@
  */
 class ControlDemoAlgorithm
 {
-  protected:
-   /**
-    * \brief define config type
-    *
-    * Define a Config type with the ControlDemoConfig. All driver implementations
-    * will then use the same variable type Config.
-    */
-    pthread_mutex_t access_;    
+protected:
+  /**
+   * \brief define config type
+   *
+   * Define a Config type with the ControlDemoConfig. All driver implementations
+   * will then use the same variable type Config.
+   */
+  pthread_mutex_t access_;
 
-    // private attributes and methods
+  // private attributes and methods
 
-  public:
-   /**
-    * \brief define config type
-    *
-    * Define a Config type with the ControlDemoConfig. All driver implementations
-    * will then use the same variable type Config.
-    */
-    typedef control_demo::ControlDemoConfig Config;
+public:
 
-   /**
-    * \brief config variable
-    *
-    * This variable has all the driver parameters defined in the cfg config file.
-    * Is updated everytime function config_update() is called.
-    */
-    Config config_;
+  bool flag_goal_active_;
+  StateSpaceControlPtr control_;
 
-   /**
-    * \brief constructor
-    *
-    * In this constructor parameters related to the specific driver can be
-    * initalized. Those parameters can be also set in the openDriver() function.
-    * Attributes from the main node driver class IriBaseDriver such as loop_rate,
-    * may be also overload here.
-    */
-    ControlDemoAlgorithm(void);
+  /**
+   * \brief define config type
+   *
+   * Define a Config type with the ControlDemoConfig. All driver implementations
+   * will then use the same variable type Config.
+   */
+  typedef control_demo::ControlDemoConfig Config;
 
-   /**
-    * \brief Lock Algorithm
-    *
-    * Locks access to the Algorithm class
-    */
-    void lock(void) { pthread_mutex_lock(&this->access_); };
+  /**
+   * \brief config variable
+   *
+   * This variable has all the driver parameters defined in the cfg config file.
+   * Is updated everytime function config_update() is called.
+   */
+  Config config_;
 
-   /**
-    * \brief Unlock Algorithm
-    *
-    * Unlocks access to the Algorithm class
-    */
-    void unlock(void) { pthread_mutex_unlock(&this->access_); };
+  /**
+   * \brief constructor
+   *
+   * In this constructor parameters related to the specific driver can be
+   * initalized. Those parameters can be also set in the openDriver() function.
+   * Attributes from the main node driver class IriBaseDriver such as loop_rate,
+   * may be also overload here.
+   */
+  ControlDemoAlgorithm(void);
 
-   /**
-    * \brief Tries Access to Algorithm
-    *
-    * Tries access to Algorithm
-    * 
-    * \return true if the lock was adquired, false otherwise
-    */
-    bool try_enter(void) 
-    { 
-      if(pthread_mutex_trylock(&this->access_)==0)
-        return true;
-      else
-        return false;
-    };
+  /**
+   * \brief Lock Algorithm
+   *
+   * Locks access to the Algorithm class
+   */
+  void lock(void)
+  {
+    pthread_mutex_lock(&this->access_);
+  }
+  ;
 
-   /**
-    * \brief config update
-    *
-    * In this function the driver parameters must be updated with the input
-    * config variable. Then the new configuration state will be stored in the 
-    * Config attribute.
-    *
-    * \param new_cfg the new driver configuration state
-    *
-    * \param level level in which the update is taken place
-    */
-    void config_update(Config& config, uint32_t level=0);
+  /**
+   * \brief Unlock Algorithm
+   *
+   * Unlocks access to the Algorithm class
+   */
+  void unlock(void)
+  {
+    pthread_mutex_unlock(&this->access_);
+  }
+  ;
 
-    // here define all control_demo_alg interface methods to retrieve and set
-    // the driver parameters
+  /**
+   * \brief Tries Access to Algorithm
+   *
+   * Tries access to Algorithm
+   *
+   * \return true if the lock was adquired, false otherwise
+   */
+  bool try_enter(void)
+  {
+    if (pthread_mutex_trylock(&this->access_) == 0)
+      return true;
+    else
+      return false;
+  }
+  ;
 
-   /**
-    * \brief Destructor
-    *
-    * This destructor is called when the object is about to be destroyed.
-    *
-    */
-    ~ControlDemoAlgorithm(void);
+  /**
+   * \brief config update
+   *
+   * In this function the driver parameters must be updated with the input
+   * config variable. Then the new configuration state will be stored in the
+   * Config attribute.
+   *
+   * \param new_cfg the new driver configuration state
+   *
+   * \param level level in which the update is taken place
+   */
+  void config_update(Config& config, uint32_t level = 0);
+
+  // here define all control_demo_alg interface methods to retrieve and set
+  // the driver parameters
+
+  /**
+   * \brief Destructor
+   *
+   * This destructor is called when the object is about to be destroyed.
+   */
+  ~ControlDemoAlgorithm(void);
+
+  /**
+   * \brief Control Loop
+   *
+   * This method is the one that contains the procedure to generate
+   * control actions given pose and goal.
+   *
+   * @param last_pose (imput) is the current pose of vehicle.
+   * @param last_goal (imput) is the desired pose of vehicle.
+   * @param ackermann_state (output) is the control signal.
+   */
+  int controlLoop(geometry_msgs::PoseWithCovarianceStamped last_pose, geometry_msgs::PoseStamped last_goal,
+                  ackermann_msgs::AckermannDriveStamped& ackermann_state);
 };
 
 #endif
