@@ -13,34 +13,57 @@ StateSpaceControl::~StateSpaceControl(void)
 ///////////////////////////////////////////////////////////////
 // StateSpaceControl Public API
 ///////////////////////////////////////////////////////////////
-int StateSpaceControl::checkRestrictions(struct PoseCtrl st_pose, struct PoseCtrl st_goal)
+int StateSpaceControl::checkRestrictions(void)
 {
   struct PoseCtrl st_transform;
-  struct PoseCtrl st_pose_in_goal_frame;
-  int output = OK;
+  int status = OK;
 
   //translation to goal frame
-  st_transform.x = -1 * st_goal.x;
-  st_transform.y = -1 * st_goal.y;
-  st_transform.z = -1 * st_goal.z;
+  st_transform.x = -1 * this->st_goal_.x;
+  st_transform.y = -1 * this->st_goal_.y;
+  st_transform.z = -1 * this->st_goal_.z;
   st_transform.yaw = 0.0;
   st_transform.pitch = 0.0;
   st_transform.roll = 0.0;
-  this->transformPoint(st_transform, st_pose, st_pose_in_goal_frame);
+  this->transformPoint(st_transform, this->st_pose_, this->st_pose_in_goal_frame_);
 
   //rotation to goal frame
   st_transform.x = 0.0;
   st_transform.y = 0.0;
   st_transform.z = 0.0;
-  st_transform.yaw = st_goal.yaw;
-  st_transform.pitch = st_goal.pitch;
-  st_transform.roll = st_goal.roll;
-  this->transformPoint(st_transform, st_pose_in_goal_frame, st_pose_in_goal_frame);
+  st_transform.yaw = this->st_goal_.yaw;
+  st_transform.pitch = this->st_goal_.pitch;
+  st_transform.roll = this->st_goal_.roll;
+  this->transformPoint(st_transform, this->st_pose_in_goal_frame_, this->st_pose_in_goal_frame_);
 
   //check restrictions
-  output = this->restrictionRules(st_pose_in_goal_frame);
+  status = this->restrictionRules(this->st_pose_in_goal_frame_);
 
-  return output;
+  return status;
+}
+
+int StateSpaceControl::calculationErrorSignals (float& error_d, float& error_a)
+{
+  error_d = this->st_pose_in_goal_frame_.y;
+  error_a = (float)this->st_pose_in_goal_frame_.yaw;
+  return 0;
+}
+
+int StateSpaceControl::calculationControlSignals (float& steering, float& speed, float error_d, float error_a)
+{
+  float speed_adj;
+
+  steering = this->ku_d_*error_d + this->ku_a_*error_a;
+
+  speed_adj = this->kv_d_*error_d + this->kv_a_*error_a;
+
+  speed = this->v_max_ - fabs(speed_adj)/50;
+
+  if (speed < this->v_base_){
+    speed = this->v_base_;
+  }
+
+  return 0;
 }
 
 int StateSpaceControl::transformPoint(struct PoseCtrl st_transform, struct PoseCtrl st_original_point,
@@ -121,15 +144,15 @@ int StateSpaceControl::transformPoint(struct PoseCtrl st_transform, struct PoseC
 
 int StateSpaceControl::restrictionRules(struct PoseCtrl st_pose_in_goal_frame)
 {
-  int output = OK;
+  int status = OK;
 
   if (st_pose_in_goal_frame.x >= 0.0)
   {
-    output = CROSSED_GOAL;
+    status = CROSSED_GOAL;
   }
   if (st_pose_in_goal_frame.yaw >= PI / 2 || st_pose_in_goal_frame.yaw <= -PI / 2)
   {
-    output = BAD_ORIENTATION;
+    status = BAD_ORIENTATION;
   }
-  return output;
+  return status;
 }

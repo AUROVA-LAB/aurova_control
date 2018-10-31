@@ -60,6 +60,7 @@ protected:
 
 public:
 
+  bool flag_pose_active_;
   bool flag_goal_active_;
   StateSpaceControlPtr control_;
 
@@ -154,7 +155,9 @@ public:
    * \brief Control Loop
    *
    * This method is the one that contains the procedure to generate
-   * control actions given pose and goal.
+   * control actions given pose and goal. This function returns the status
+   * encoded in an integer. The tags to interpret this number are in the class
+   * StateSpaceControl and are: OK = 0, CROSSED_GOAL = 1, and BAD_ORIENTATION = 2.
    *
    * @param last_pose (imput) is the current pose of vehicle.
    * @param last_goal (imput) is the desired pose of vehicle.

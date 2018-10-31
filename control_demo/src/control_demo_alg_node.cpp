@@ -34,25 +34,43 @@ ControlDemoAlgNode::~ControlDemoAlgNode(void)
 
 void ControlDemoAlgNode::mainNodeThread(void)
 {
+  bool first_exec = true;
 
-  if (this->alg_.flag_goal_active_)
+  //parameter reading
+  if (first_exec)
   {
-    int debug = this->alg_.controlLoop(this->last_pose_, this->last_goal_, this->desired_ackermann_state_);
+    this->public_node_handle_.getParam("/control_demo/ku_d", this->alg_.control_->ku_d_);
+    this->public_node_handle_.getParam("/control_demo/ku_a", this->alg_.control_->ku_a_);
+    this->public_node_handle_.getParam("/control_demo/kv_d", this->alg_.control_->kv_d_);
+    this->public_node_handle_.getParam("/control_demo/kv_a", this->alg_.control_->kv_a_);
+    this->public_node_handle_.getParam("/control_demo/v_base", this->alg_.control_->v_base_);
+    this->public_node_handle_.getParam("/control_demo/v_max", this->alg_.control_->v_max_);
+    first_exec = false;
+  }
+
+  //control loop
+  if (this->alg_.flag_goal_active_ && this->alg_.flag_pose_active_)
+  {
+    int status = this->alg_.controlLoop(this->last_pose_, this->last_goal_, this->desired_ackermann_state_);
 
     //debug
-    if (debug == OK)
+    if (status == OK)
     {
       ROS_INFO("OK");
     }
-    else if (debug == CROSSED_GOAL)
+    else if (status == CROSSED_GOAL)
     {
       ROS_INFO("CROSSED_GOAL");
       this->alg_.flag_goal_active_ = false;
+      this->desired_ackermann_state_.drive.steering_angle = 0.0;
+      this->desired_ackermann_state_.drive.speed = 0.0;
     }
-    else if (debug == BAD_ORIENTATION)
+    else if (status == BAD_ORIENTATION)
     {
       ROS_INFO("BAD_ORIENTATION");
       this->alg_.flag_goal_active_ = false;
+      this->desired_ackermann_state_.drive.steering_angle = 0.0;
+      this->desired_ackermann_state_.drive.speed = 0.0;
     }
   }
 
@@ -77,6 +95,7 @@ void ControlDemoAlgNode::cb_getPoseMsg(const geometry_msgs::PoseWithCovarianceSt
   this->last_pose_.pose.pose.orientation.y = pose_msg->pose.pose.orientation.y;
   this->last_pose_.pose.pose.orientation.z = pose_msg->pose.pose.orientation.z;
   this->last_pose_.pose.pose.orientation.w = pose_msg->pose.pose.orientation.w;
+  this->alg_.flag_pose_active_ = true;
   this->alg_.unlock();
 }
 void ControlDemoAlgNode::cb_getGoalMsg(const geometry_msgs::PoseStamped::ConstPtr& goal_msg)
