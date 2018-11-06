@@ -4,7 +4,7 @@ ControlDemoAlgNode::ControlDemoAlgNode(void) :
     algorithm_base::IriBaseAlgorithm<ControlDemoAlgorithm>()
 {
   //init class attributes if necessary
-  this->loop_rate_ = 10; //in [Hz]
+  this->loop_rate_ = 25; //in [Hz]
   this->last_pose_.pose.pose.position.x = 0.0;
   this->last_goal_.pose.position.x = 0.0;
 
