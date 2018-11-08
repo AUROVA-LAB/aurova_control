@@ -36,6 +36,7 @@
 #include "ackermann_msgs/AckermannDriveStamped.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "std_msgs/Bool.h"
 #include <tf/tf.h>
 
 //include control_demo_alg main library

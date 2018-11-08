@@ -51,9 +51,11 @@ private:
   ackermann_msgs::AckermannDriveStamped desired_ackermann_state_;
   geometry_msgs::PoseWithCovarianceStamped last_pose_;
   geometry_msgs::PoseStamped last_goal_;
+  std_msgs::Bool flag_request_goal_;
 
   // [publisher attributes]
   ros::Publisher ackermann_publisher_;
+  ros::Publisher request_publisher_;
 
   // [subscriber attributes]
   ros::Subscriber goal_subscriber_;

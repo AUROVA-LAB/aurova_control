@@ -5,12 +5,14 @@ ControlDemoAlgNode::ControlDemoAlgNode(void) :
 {
   //init class attributes if necessary
   this->loop_rate_ = 25; //in [Hz]
+  this->flag_request_goal_.data = true;
   this->last_pose_.pose.pose.position.x = 0.0;
   this->last_goal_.pose.position.x = 0.0;
 
   // [init publishers]
   this->ackermann_publisher_ = this->public_node_handle_.advertise < ackermann_msgs::AckermannDriveStamped
       > ("/desired_ackermann_state", 1);
+  this->request_publisher_ = this->public_node_handle_.advertise < std_msgs::Bool > ("/request_goal", 1);
 
   // [init subscribers]
   this->pose_subscriber_ = this->public_node_handle_.subscribe("/amcl_pose", 1, &ControlDemoAlgNode::cb_getPoseMsg,
@@ -34,7 +36,10 @@ ControlDemoAlgNode::~ControlDemoAlgNode(void)
 
 void ControlDemoAlgNode::mainNodeThread(void)
 {
-  bool first_exec = true;
+  static bool first_exec = true;
+  static double t_1;
+  static double t_2;
+  int status = -1;
 
   //parameter reading
   if (first_exec)
@@ -45,13 +50,14 @@ void ControlDemoAlgNode::mainNodeThread(void)
     this->public_node_handle_.getParam("/control_demo/kv_a", this->alg_.control_->kv_a_);
     this->public_node_handle_.getParam("/control_demo/v_base", this->alg_.control_->v_base_);
     this->public_node_handle_.getParam("/control_demo/v_max", this->alg_.control_->v_max_);
+    this->public_node_handle_.getParam("/time_out_wait_goal", this->alg_.control_->time_out_wait_goal_);
     first_exec = false;
   }
 
   //control loop
   if (this->alg_.flag_goal_active_ && this->alg_.flag_pose_active_)
   {
-    int status = this->alg_.controlLoop(this->last_pose_, this->last_goal_, this->desired_ackermann_state_);
+    status = this->alg_.controlLoop(this->last_pose_, this->last_goal_, this->desired_ackermann_state_);
 
     //debug
     if (status == OK)
@@ -62,15 +68,21 @@ void ControlDemoAlgNode::mainNodeThread(void)
     {
       ROS_INFO("CROSSED_GOAL");
       this->alg_.flag_goal_active_ = false;
-      this->desired_ackermann_state_.drive.steering_angle = 0.0;
-      this->desired_ackermann_state_.drive.speed = 0.0;
     }
     else if (status == BAD_ORIENTATION)
     {
       ROS_INFO("BAD_ORIENTATION");
       this->alg_.flag_goal_active_ = false;
+    }
+
+    this->flag_request_goal_.data = false;
+  }else{
+    t_2 = (double)ros::Time::now().toSec();
+    if ((t_2 - t_1) > this->alg_.control_->time_out_wait_goal_)
+    {
       this->desired_ackermann_state_.drive.steering_angle = 0.0;
       this->desired_ackermann_state_.drive.speed = 0.0;
+      ROS_INFO("TIME_OUT_WAITING_NEW_GOAL");
     }
   }
 
@@ -82,6 +94,14 @@ void ControlDemoAlgNode::mainNodeThread(void)
 
   // [publish messages]
   this->ackermann_publisher_.publish(this->desired_ackermann_state_);
+  this->request_publisher_.publish(this->flag_request_goal_);
+
+  //this is for generate up flank.
+  if (status == CROSSED_GOAL || status == BAD_ORIENTATION)
+  {
+    this->flag_request_goal_.data = true;
+    t_1 = (double)ros::Time::now().toSec();
+  }
 }
 
 /*  [subscriber callbacks] */

@@ -69,6 +69,7 @@ public:
   float kv_a_;
   float v_base_;
   float v_max_;
+  float time_out_wait_goal_;
   struct PoseCtrl st_goal_;
   struct PoseCtrl st_pose_;
   struct PoseCtrl st_pose_in_goal_frame_;
