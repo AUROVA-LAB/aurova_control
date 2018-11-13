@@ -51,6 +51,8 @@ void ControlDemoAlgNode::mainNodeThread(void)
     this->public_node_handle_.getParam("/control_demo/v_base", this->alg_.control_->v_base_);
     this->public_node_handle_.getParam("/control_demo/v_max", this->alg_.control_->v_max_);
     this->public_node_handle_.getParam("/time_out_wait_goal", this->alg_.control_->time_out_wait_goal_);
+    this->public_node_handle_.getParam("/error_d_sat", this->alg_.control_->error_d_sat_);
+    this->public_node_handle_.getParam("/max_steering", this->alg_.control_->max_steering_);
     first_exec = false;
   }
 

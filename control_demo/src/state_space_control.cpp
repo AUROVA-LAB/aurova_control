@@ -42,24 +42,36 @@ int StateSpaceControl::checkRestrictions(void)
   return status;
 }
 
-int StateSpaceControl::calculationErrorSignals (float& error_d, float& error_a)
+int StateSpaceControl::calculationErrorSignals(float& error_d, float& error_a)
 {
   error_d = this->st_pose_in_goal_frame_.y;
+
+  //saturation of error distance
+  if (error_d > this->error_d_sat_)
+  {
+    error_d = this->error_d_sat_;
+  }
+  else if (error_d < -1 * this->error_d_sat_)
+  {
+    error_d = -1 * this->error_d_sat_;
+  }
+
   error_a = (float)this->st_pose_in_goal_frame_.yaw;
+
   return 0;
 }
 
-int StateSpaceControl::calculationControlSignals (float& steering, float& speed, float error_d, float error_a)
+int StateSpaceControl::calculationControlSignals(float& steering, float& speed, float error_d, float error_a)
 {
   float speed_adj;
+  float k_sp = 1 / 2 * this->max_steering_; //add this variable as parameter!!
 
-  steering = this->ku_d_*error_d + this->ku_a_*error_a;
+  steering = this->ku_d_ * error_d + this->ku_a_ * error_a;
 
-  speed_adj = this->kv_d_*error_d + this->kv_a_*error_a;
-
-  speed = this->v_max_ - fabs(speed_adj)/50;
-
-  if (speed < this->v_base_){
+  //speed regulator
+  speed = this->v_max_ - fabs(steering) * k_sp;
+  if (speed < this->v_base_)
+  {
     speed = this->v_base_;
   }
 
