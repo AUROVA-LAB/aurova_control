@@ -50,9 +50,10 @@ void ControlDemoAlgNode::mainNodeThread(void)
     this->public_node_handle_.getParam("/control_demo/kv_a", this->alg_.control_->kv_a_);
     this->public_node_handle_.getParam("/control_demo/v_base", this->alg_.control_->v_base_);
     this->public_node_handle_.getParam("/control_demo/v_max", this->alg_.control_->v_max_);
+    this->public_node_handle_.getParam("/control_demo/max_steering", this->alg_.control_->max_steering_);
     this->public_node_handle_.getParam("/time_out_wait_goal", this->alg_.control_->time_out_wait_goal_);
     this->public_node_handle_.getParam("/error_d_sat", this->alg_.control_->error_d_sat_);
-    this->public_node_handle_.getParam("/max_steering", this->alg_.control_->max_steering_);
+
     first_exec = false;
   }
 
@@ -98,7 +99,7 @@ void ControlDemoAlgNode::mainNodeThread(void)
   this->ackermann_publisher_.publish(this->desired_ackermann_state_);
   this->request_publisher_.publish(this->flag_request_goal_);
 
-  //this is for generate up flank.
+  //this is for generate up flank in the next loop.
   if (status == CROSSED_GOAL || status == BAD_ORIENTATION)
   {
     this->flag_request_goal_.data = true;

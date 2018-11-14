@@ -64,7 +64,7 @@ int StateSpaceControl::calculationErrorSignals(float& error_d, float& error_a)
 int StateSpaceControl::calculationControlSignals(float& steering, float& speed, float error_d, float error_a)
 {
   float speed_adj;
-  float k_sp = 1 / 2 * this->max_steering_; //add this variable as parameter!!
+  float k_sp = (this->v_max_ - this->v_base_) /  this->max_steering_;
 
   steering = this->ku_d_ * error_d + this->ku_a_ * error_a;
 
