@@ -3,12 +3,10 @@ This is a metapackage that contains different packages that perform local contro
 
 **control_demo**
 This package contains a node that, as input, reads the topics /amcl_pose of type geometry_msgs::PoseWithCovarianceStamped, and /move_base_simple/goal of type geometry_msgs::PoseStamped. This node calculates the orientation of the line it crosses /move_base_simple/goal, and calculates the error of orientation and distance of the robot (/amcl_pose) from it. With these error signals it performs a proportional control that generates a speed and a steering as an output. When the goal is reached, a request is made for the reception of a new goal. The node output is published in the topics /desired_ackermann_state of type ackermann_msgs::AckermannDriveStamped, and /request_goal of type std_msgs::Bool.
-* ~control_demo/ku_d (default: ):
-* ~control_demo/ku_a (default: ):
-* ~control_demo/kv_d (default: ):
-* ~control_demo/kv_a (default: ):
-* ~control_demo/v_base (default: ):
-* ~control_demo/v_max (default: ):
-* ~control_demo/max_steering (default: ):
-* ~time_out_wait_goal (default: ):
-* ~error_d_sat (default: ):
+* ~control_demo/ku_d (default: 0.0): Steering proportional control adjustment constant for distance.
+* ~control_demo/ku_a (default: 0.0): Steering proportional control adjustment constant for orientation.
+* ~control_demo/v_base (default: 0.0):
+* ~control_demo/v_max (default: 0.0):
+* ~control_demo/max_steering (default: 0.0):
+* ~time_out_wait_goal (default: 0.0):
+* ~error_d_sat (default: 0.0):
