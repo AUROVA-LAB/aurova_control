@@ -43,8 +43,10 @@ class AckermannControlAlgNode : public algorithm_base::IriBaseAlgorithm<Ackerman
 private:
 
   ackermann_msgs::AckermannDriveStamped desired_ackermann_state_;
-  geometry_msgs::PoseWithCovarianceStamped last_pose_;
-  geometry_msgs::PoseStamped last_goal_;
+  struct Pose pose_;
+  struct Pose goal_;
+  struct RobotParams params_;
+  Steering_Control *control_;
 
   // [publisher attributes]
   ros::Publisher ackermann_publisher_;

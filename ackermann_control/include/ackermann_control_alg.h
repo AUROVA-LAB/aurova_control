@@ -26,7 +26,7 @@
 #define _ackermann_control_alg_h_
 
 #include <ackermann_control/AckermannControlConfig.h>
-#include "SteeringControl.h"
+#include "steering/SteeringControl.h"
 #include "ackermann_msgs/AckermannDriveStamped.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "geometry_msgs/PoseStamped.h"

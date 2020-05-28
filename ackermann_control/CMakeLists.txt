@@ -91,7 +91,7 @@ add_executable(${PROJECT_NAME} src/ackermann_control_alg.cpp src/ackermann_contr
 #                   Add the libraries
 # ******************************************************************** 
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} ${steering_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} steering)
 # target_link_libraries(${PROJECT_NAME} ${<dependency>_LIBRARY})
 
 # ******************************************************************** 

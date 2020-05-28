@@ -16,7 +16,7 @@ void AckermannControlAlgorithm::config_update(Config& config, uint32_t level)
 
   // save the current configuration
   this->config_=config;
-  
+
   this->unlock();
 }
 
