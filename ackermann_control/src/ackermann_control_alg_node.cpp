@@ -35,7 +35,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   // [init subscribers]
   this->pose_subscriber_ = this->public_node_handle_.subscribe("/pose_sim", 1, &AckermannControlAlgNode::cb_getPoseMsg,
                                                                this);
-  this->goal_subscriber_ = this->public_node_handle_.subscribe("/move_base_simple/goal", 1,
+  this->goal_subscriber_ = this->public_node_handle_.subscribe("/semilocal_goal", 1,
                                                                &AckermannControlAlgNode::cb_getGoalMsg, this);
 
   // [init subscribers]
@@ -62,7 +62,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
   float k_sp = (v_max - v_min) / this->params_.maxAngle;
   double speed = 0.0;
   this->direction_ = this->control_->getBestSteering(this->pose_, this->goal_);
-  ROS_INFO("action -> a: %f, s: %d", (float)(this->direction_.angle), this->direction_.sense);
+  //ROS_INFO("action -> a: %f, s: %d", (float)(this->direction_.angle), this->direction_.sense);
 
   switch (this->direction_.sense)
   {
@@ -131,7 +131,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseStamped::Co
   this->goal_.matrix[2][2] = 1.0;
   this->goal_.matrix[3][3] = 0.001;
 
-  ROS_INFO("goal -> x: %f, y: %f", this->goal_.coordinates.at(0), this->goal_.coordinates.at(1));
+  //ROS_INFO("goal -> x: %f, y: %f", this->goal_.coordinates.at(0), this->goal_.coordinates.at(1));
   this->alg_.unlock();
 }
 
