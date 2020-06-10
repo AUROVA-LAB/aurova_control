@@ -42,6 +42,8 @@ class AckermannControlAlgNode : public algorithm_base::IriBaseAlgorithm<Ackerman
 {
 private:
 
+  float v_min_;
+  float v_max_;
   ackermann_msgs::AckermannDriveStamped ackermann_state_;
   struct Pose pose_;
   struct Pose goal_;
@@ -68,7 +70,7 @@ private:
    * This message can be read from different goal sources by remapping in the
    * execution of the node.
    */
-  void cb_getGoalMsg(const geometry_msgs::PoseStamped::ConstPtr& goal_msg);
+  void cb_getGoalMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& goal_msg);
 
   // [subscriber attributes]
 
