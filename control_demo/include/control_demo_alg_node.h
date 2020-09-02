@@ -49,12 +49,14 @@ class ControlDemoAlgNode : public algorithm_base::IriBaseAlgorithm<ControlDemoAl
 private:
 
   ackermann_msgs::AckermannDriveStamped desired_ackermann_state_;
+  geometry_msgs::Twist desired_twist_state_;
   geometry_msgs::PoseWithCovarianceStamped last_pose_;
   geometry_msgs::PoseStamped last_goal_;
   std_msgs::Bool flag_request_goal_;
 
   // [publisher attributes]
   ros::Publisher ackermann_publisher_;
+  ros::Publisher twist_publisher_;
   ros::Publisher request_publisher_;
 
   // [subscriber attributes]

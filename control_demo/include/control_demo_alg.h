@@ -36,6 +36,7 @@
 #include "ackermann_msgs/AckermannDriveStamped.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/Twist.h"
 #include "std_msgs/Bool.h"
 #include <tf/tf.h>
 
@@ -162,10 +163,12 @@ public:
    *
    * @param last_pose (imput) is the current pose of vehicle.
    * @param last_goal (imput) is the desired pose of vehicle.
+   * @param d_vehicle (imput) is the length of the vehicle.
    * @param ackermann_state (output) is the control signal.
+   * @param twist_state (output) is the control signal expressed in twist format.
    */
-  int controlLoop(geometry_msgs::PoseWithCovarianceStamped last_pose, geometry_msgs::PoseStamped last_goal,
-                  ackermann_msgs::AckermannDriveStamped& ackermann_state);
+  int controlLoop(geometry_msgs::PoseWithCovarianceStamped last_pose, geometry_msgs::PoseStamped last_goal, float d_vehicle,
+                  ackermann_msgs::AckermannDriveStamped& ackermann_state, geometry_msgs::Twist& twist_state);
 };
 
 #endif

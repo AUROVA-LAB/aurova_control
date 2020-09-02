@@ -12,6 +12,7 @@ ControlDemoAlgNode::ControlDemoAlgNode(void) :
   // [init publishers]
   this->ackermann_publisher_ = this->public_node_handle_.advertise < ackermann_msgs::AckermannDriveStamped
       > ("/desired_ackermann_state", 1);
+  this->twist_publisher_ = this->public_node_handle_.advertise < geometry_msgs::Twist > ("/cmd_vel", 1);
   this->request_publisher_ = this->public_node_handle_.advertise < std_msgs::Bool > ("/request_goal", 1);
 
   // [init subscribers]
@@ -51,6 +52,7 @@ void ControlDemoAlgNode::mainNodeThread(void)
     this->public_node_handle_.getParam("/control_demo/v_base", this->alg_.control_->v_base_);
     this->public_node_handle_.getParam("/control_demo/v_max", this->alg_.control_->v_max_);
     this->public_node_handle_.getParam("/control_demo/max_steering", this->alg_.control_->max_steering_);
+    this->public_node_handle_.getParam("/control_demo/d_vehicle", this->alg_.control_->d_vehicle_);
     this->public_node_handle_.getParam("/time_out_wait_goal", this->alg_.control_->time_out_wait_goal_);
     this->public_node_handle_.getParam("/error_d_sat", this->alg_.control_->error_d_sat_);
 
@@ -60,7 +62,8 @@ void ControlDemoAlgNode::mainNodeThread(void)
   //control loop
   if (this->alg_.flag_goal_active_ && this->alg_.flag_pose_active_)
   {
-    status = this->alg_.controlLoop(this->last_pose_, this->last_goal_, this->desired_ackermann_state_);
+    status = this->alg_.controlLoop(this->last_pose_, this->last_goal_, this->alg_.control_->d_vehicle_,
+                                    this->desired_ackermann_state_, this->desired_twist_state_);
 
     //debug
     if (status == OK)
@@ -85,6 +88,8 @@ void ControlDemoAlgNode::mainNodeThread(void)
     {
       this->desired_ackermann_state_.drive.steering_angle = 0.0;
       this->desired_ackermann_state_.drive.speed = 0.0;
+      this->desired_twist_state_.linear.x = 0.0;
+      this->desired_twist_state_.angular.z = 0.0;
       ROS_INFO("TIME_OUT_WAITING_NEW_GOAL");
     }
   }
@@ -97,6 +102,7 @@ void ControlDemoAlgNode::mainNodeThread(void)
 
   // [publish messages]
   this->ackermann_publisher_.publish(this->desired_ackermann_state_);
+  this->twist_publisher_.publish(this->desired_twist_state_);
   this->request_publisher_.publish(this->flag_request_goal_);
 
   //this is for generate up flank in the next loop.

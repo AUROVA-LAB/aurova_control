@@ -28,8 +28,9 @@ void ControlDemoAlgorithm::config_update(Config& config, uint32_t level)
 
 // ControlDemoAlgorithm Public API
 int ControlDemoAlgorithm::controlLoop(geometry_msgs::PoseWithCovarianceStamped last_pose,
-                                      geometry_msgs::PoseStamped last_goal,
-                                      ackermann_msgs::AckermannDriveStamped& ackermann_state)
+                                      geometry_msgs::PoseStamped last_goal, float d_vehicle,
+                                      ackermann_msgs::AckermannDriveStamped& ackermann_state,
+                                      geometry_msgs::Twist& twist_state)
 {
   int status = OK;
   float error_d, error_a;
@@ -73,6 +74,12 @@ int ControlDemoAlgorithm::controlLoop(geometry_msgs::PoseWithCovarianceStamped l
     ROS_INFO("steering a: %f", steering);
     ackermann_state.drive.steering_angle = steering;
     ackermann_state.drive.speed = speed;
+    
+    //////////////////////////////////////////////////////////////////////
+    ////// 3.b) GENERATE CONTROL SIGNALS FOR TWIST MSG
+    twist_state.linear.x = speed;
+    twist_state.angular.z = (speed / d_vehicle) * sin(steering);
+    
   }
 
   return status;
