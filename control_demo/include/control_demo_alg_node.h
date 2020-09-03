@@ -62,13 +62,21 @@ private:
   // [subscriber attributes]
   ros::Subscriber goal_subscriber_;
   ros::Subscriber pose_subscriber_;
+  ros::Subscriber odom_subscriber_;
 
   /**
    * \brief callback for read pose messages
    * This message can be read from different localization sources by remapping in the
-   * execution of the node.
+   * execution of the node launch.
    */
   void cb_getPoseMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& pose_msg);
+  
+  /**
+   * \brief callback for read odometry messages
+   * This message can be read from different localization sources by remapping in the
+   * execution of the node launch.
+   */
+  void cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& odom_msg);
 
   /**
    * \brief callback for read pose messages to use as a goal

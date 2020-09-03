@@ -16,8 +16,8 @@ ControlDemoAlgNode::ControlDemoAlgNode(void) :
   this->request_publisher_ = this->public_node_handle_.advertise < std_msgs::Bool > ("/request_goal", 1);
 
   // [init subscribers]
-  this->pose_subscriber_ = this->public_node_handle_.subscribe("/amcl_pose", 1, &ControlDemoAlgNode::cb_getPoseMsg,
-                                                               this);
+  this->pose_subscriber_ = this->public_node_handle_.subscribe("/amcl_pose", 1, &ControlDemoAlgNode::cb_getPoseMsg, this);
+  this->odom_subscriber_ = this->public_node_handle_.subscribe("/odom", 1, &ControlDemoAlgNode::cb_getOdomMsg, this);
   this->goal_subscriber_ = this->public_node_handle_.subscribe("/move_base_simple/goal", 1,
                                                                &ControlDemoAlgNode::cb_getGoalMsg, this);
 
@@ -124,6 +124,19 @@ void ControlDemoAlgNode::cb_getPoseMsg(const geometry_msgs::PoseWithCovarianceSt
   this->last_pose_.pose.pose.orientation.y = pose_msg->pose.pose.orientation.y;
   this->last_pose_.pose.pose.orientation.z = pose_msg->pose.pose.orientation.z;
   this->last_pose_.pose.pose.orientation.w = pose_msg->pose.pose.orientation.w;
+  this->alg_.flag_pose_active_ = true;
+  this->alg_.unlock();
+}
+void ControlDemoAlgNode::cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& odom_msg)
+{
+  this->alg_.lock();
+  this->last_pose_.pose.pose.position.x = odom_msg->pose.pose.position.x;
+  this->last_pose_.pose.pose.position.y = odom_msg->pose.pose.position.y;
+  this->last_pose_.pose.pose.position.z = odom_msg->pose.pose.position.z;
+  this->last_pose_.pose.pose.orientation.x = odom_msg->pose.pose.orientation.x;
+  this->last_pose_.pose.pose.orientation.y = odom_msg->pose.pose.orientation.y;
+  this->last_pose_.pose.pose.orientation.z = odom_msg->pose.pose.orientation.z;
+  this->last_pose_.pose.pose.orientation.w = odom_msg->pose.pose.orientation.w;
   this->alg_.flag_pose_active_ = true;
   this->alg_.unlock();
 }
