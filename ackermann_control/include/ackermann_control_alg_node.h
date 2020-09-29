@@ -28,6 +28,8 @@
 #include <iri_base_algorithm/iri_base_algorithm.h>
 #include "ackermann_control_alg.h"
 
+#define PI 3.141592
+
 // [publisher subscriber headers]
 
 // [service client headers]
@@ -44,19 +46,25 @@ private:
 
   float v_min_;
   float v_max_;
+  bool flag_odom_;
+  bool flag_goal_;
   ackermann_msgs::AckermannDriveStamped ackermann_state_;
+  geometry_msgs::Twist twist_state_;
   struct Pose pose_;
   struct Pose goal_;
   struct RobotParams params_;
   struct Direction direction_;
   Steering_Control *control_;
+  tf::TransformListener listener_;
 
   // [publisher attributes]
   ros::Publisher ackermann_publisher_;
+  ros::Publisher twist_publisher_;
 
   // [subscriber attributes]
   ros::Subscriber goal_subscriber_;
   ros::Subscriber pose_subscriber_;
+  ros::Subscriber odom_subscriber_;
 
   /**
    * \brief callback for read pose messages
@@ -64,6 +72,13 @@ private:
    * execution of the node.
    */
   void cb_getPoseMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& pose_msg);
+  
+  /**
+   * \brief callback for read pose messages
+   * This message can be read from different localization sources by remapping in the
+   * execution of the node.
+   */
+  void cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& odom_msg);
 
   /**
    * \brief callback for read pose messages to use as a goal

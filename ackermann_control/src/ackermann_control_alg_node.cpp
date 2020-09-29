@@ -9,6 +9,8 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   //get application parameters
   double t_length, delta_time, delta_angle, t_velocity;
   int vectors_size = 4;
+  this->flag_odom_ = false;
+  this->flag_goal_ = false;
   this->public_node_handle_.getParam("/ackermann_control/max_angle", this->params_.maxAngle);
   this->public_node_handle_.getParam("/ackermann_control/v_length", this->params_.l);
   this->public_node_handle_.getParam("/ackermann_control/v_width", this->params_.w);
@@ -36,10 +38,11 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   // [init publishers]
   this->ackermann_publisher_ = this->public_node_handle_.advertise < ackermann_msgs::AckermannDriveStamped
       > ("/desired_ackermann_state", 1);
+  this->twist_publisher_ = this->public_node_handle_.advertise < geometry_msgs::Twist > ("/cmd_vel", 1);
 
   // [init subscribers]
-  this->pose_subscriber_ = this->public_node_handle_.subscribe("/pose_sim", 1, &AckermannControlAlgNode::cb_getPoseMsg,
-                                                               this);
+  this->odom_subscriber_ = this->public_node_handle_.subscribe("/odom", 1, &AckermannControlAlgNode::cb_getOdomMsg, this);
+  this->pose_subscriber_ = this->public_node_handle_.subscribe("/pose_sim", 1, &AckermannControlAlgNode::cb_getPoseMsg, this);
   this->goal_subscriber_ = this->public_node_handle_.subscribe("/semilocal_goal", 1,
                                                                &AckermannControlAlgNode::cb_getGoalMsg, this);
 
@@ -61,33 +64,42 @@ AckermannControlAlgNode::~AckermannControlAlgNode(void)
 
 void AckermannControlAlgNode::mainNodeThread(void)
 {
-  // [fill msg structures]
-  float k_sp = (this->v_max_ - this->v_min_) / this->params_.maxAngle;
-  double speed = 0.0;
-  this->direction_ = this->control_->getBestSteering(this->pose_, this->goal_);
 
-  switch (this->direction_.sense)
-  {
-    case 0:
-      speed = 0.0;
-      break;
-    case 1:
-      speed = this->v_max_ - fabs(this->direction_.angle) * k_sp;
-      break;
-    case -1:
-      speed = -1 * (this->v_max_ - fabs(this->direction_.angle) * k_sp);
-      break;
+   if (this->flag_odom_ && this->flag_goal_)
+   {
+
+    // [fill msg structures]
+    float k_sp = (this->v_max_ - this->v_min_) / this->params_.maxAngle;
+    double speed = 0.0;
+    this->direction_ = this->control_->getBestSteering(this->pose_, this->goal_);
+
+    switch (this->direction_.sense)
+    {
+      case 0:
+        speed = 0.0;
+        break;
+      case 1:
+        speed = this->v_max_ - fabs(this->direction_.angle) * k_sp;
+        break;
+      case -1:
+        speed = -1 * (this->v_max_ - fabs(this->direction_.angle) * k_sp);
+        break;
+    }
+
+    this->ackermann_state_.drive.steering_angle = this->direction_.angle;
+    this->ackermann_state_.drive.speed = speed;
+    
+    this->twist_state_.linear.x = speed;
+    this->twist_state_.angular.z = (speed / this->params_.l) * sin(this->direction_.angle);
+
+    // [fill srv structure and make request to the server]
+ 
+    // [fill action structure and make request to the action server]
+
+    // [publish messages]
+    this->ackermann_publisher_.publish(this->ackermann_state_);
+    this->twist_publisher_.publish(this->twist_state_);
   }
-
-  this->ackermann_state_.drive.steering_angle = this->direction_.angle;
-  this->ackermann_state_.drive.speed = speed;
-
-  // [fill srv structure and make request to the server]
-
-  // [fill action structure and make request to the action server]
-
-  // [publish messages]
-  this->ackermann_publisher_.publish(this->ackermann_state_);
 
 }
 
@@ -96,41 +108,99 @@ void AckermannControlAlgNode::cb_getPoseMsg(const geometry_msgs::PoseWithCovaria
 {
   this->alg_.lock();
 
-  double roll, pitch, yaw;
-  tf::Quaternion q_pose(pose_msg->pose.pose.orientation.x, pose_msg->pose.pose.orientation.y,
-                        pose_msg->pose.pose.orientation.z, pose_msg->pose.pose.orientation.w);
-  tf::Matrix3x3 m_pose(q_pose);
-  m_pose.getRPY(roll, pitch, yaw);
-
-  this->pose_.coordinates.at(0) = pose_msg->pose.pose.position.x;
-  this->pose_.coordinates.at(1) = pose_msg->pose.pose.position.y;
-  this->pose_.coordinates.at(2) = pose_msg->pose.pose.position.z;
-  this->pose_.coordinates.at(3) = yaw;
+  // in base_link frame
+  this->pose_.coordinates.at(0) = 0.0;
+  this->pose_.coordinates.at(1) = 0.0;
+  this->pose_.coordinates.at(2) = 0.0;
+  this->pose_.coordinates.at(3) = 0.0;
   this->pose_.matrix[0][0] = pose_msg->pose.covariance[0];
   this->pose_.matrix[1][1] = pose_msg->pose.covariance[7];
   this->pose_.matrix[2][2] = pose_msg->pose.covariance[14];
   this->pose_.matrix[3][3] = pose_msg->pose.covariance[35];
+  
+  this->flag_odom_ = true;
+
+  this->alg_.unlock();
+}
+void AckermannControlAlgNode::cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& odom_msg)
+{
+  this->alg_.lock();
+
+  // in base_link frame
+  this->pose_.coordinates.at(0) = 0.0;
+  this->pose_.coordinates.at(1) = 0.0;
+  this->pose_.coordinates.at(2) = 0.0;
+  this->pose_.coordinates.at(3) = 0.0;
+  this->pose_.matrix[0][0] = odom_msg->pose.covariance[0];
+  this->pose_.matrix[1][1] = odom_msg->pose.covariance[7];
+  this->pose_.matrix[2][2] = odom_msg->pose.covariance[14];
+  this->pose_.matrix[3][3] = odom_msg->pose.covariance[35];
+  
+  this->flag_odom_ = true;
 
   this->alg_.unlock();
 }
 void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& goal_msg)
 {
   this->alg_.lock();
+  
+  ///////////////////////////////////////////////////////////
+  ///// TRANSFORM TO BASE_LINK FARME
+  geometry_msgs::PointStamped goal_tf;
+  geometry_msgs::PointStamped goal_base;
+  goal_tf.header.frame_id = "odom"; //goal_msg->header.frame_id;
+  goal_tf.header.stamp = ros::Time(0); //ros::Time::now();
+  goal_tf.point.x = goal_msg->pose.pose.position.x;
+  goal_tf.point.y = goal_msg->pose.pose.position.y;
+  goal_tf.point.z = goal_msg->pose.pose.position.z;
+  try
+  {
+    this->listener_.transformPoint("base_link", goal_tf, goal_base);
 
+  }
+  catch (tf::TransformException& ex)
+  {
+    ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
+    return;
+  }
+  
+  geometry_msgs::QuaternionStamped orient_tf;
+  geometry_msgs::QuaternionStamped orient_base;
+  orient_tf.header.frame_id = "odom"; //goal_msg->header.frame_id;
+  orient_tf.header.stamp = ros::Time(0);
+  orient_tf.quaternion.x = goal_msg->pose.pose.orientation.x;
+  orient_tf.quaternion.y = goal_msg->pose.pose.orientation.y;
+  orient_tf.quaternion.z = goal_msg->pose.pose.orientation.z;
+  orient_tf.quaternion.w = goal_msg->pose.pose.orientation.w;
+  try
+  {
+    this->listener_.transformQuaternion("base_link", orient_tf, orient_base);
+
+  }
+  catch (tf::TransformException& ex)
+  {
+    ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
+    return;
+  }
   double roll, pitch, yaw;
-  tf::Quaternion q_pose(goal_msg->pose.pose.orientation.x, goal_msg->pose.pose.orientation.y,
-                        goal_msg->pose.pose.orientation.z, goal_msg->pose.pose.orientation.w);
+  tf::Quaternion q_pose(orient_base.quaternion.x, orient_base.quaternion.y,
+                        orient_base.quaternion.z, orient_base.quaternion.w);
   tf::Matrix3x3 m_pose(q_pose);
   m_pose.getRPY(roll, pitch, yaw);
+  yaw = (yaw * 180.0) / PI;
+  ///////////////////////////////////////////////////////////
 
-  this->goal_.coordinates.at(0) = goal_msg->pose.pose.position.x;
-  this->goal_.coordinates.at(1) = goal_msg->pose.pose.position.y;
-  this->goal_.coordinates.at(2) = goal_msg->pose.pose.position.z;
+
+  this->goal_.coordinates.at(0) = goal_base.point.x;
+  this->goal_.coordinates.at(1) = goal_base.point.y;
+  this->goal_.coordinates.at(2) = goal_base.point.z;
   this->goal_.coordinates.at(3) = yaw;
   this->goal_.matrix[0][0] = goal_msg->pose.covariance[0];
   this->goal_.matrix[1][1] = goal_msg->pose.covariance[7];
   this->goal_.matrix[2][2] = goal_msg->pose.covariance[14];
   this->goal_.matrix[3][3] = goal_msg->pose.covariance[35];
+  
+  this->flag_goal_ = true;
 
   this->alg_.unlock();
 }
