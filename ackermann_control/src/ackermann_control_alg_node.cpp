@@ -85,12 +85,20 @@ void AckermannControlAlgNode::mainNodeThread(void)
         speed = -1 * (this->v_max_ - fabs(this->direction_.angle) * k_sp);
         break;
     }
-
+    
     this->ackermann_state_.drive.steering_angle = this->direction_.angle;
     this->ackermann_state_.drive.speed = speed;
     
     this->twist_state_.linear.x = speed;
     this->twist_state_.angular.z = (speed / this->params_.l) * sin(this->direction_.angle);
+    
+    //////////////////////////////////////////////////////
+    //// DEBUG
+    ROS_INFO("goal -> x: %f, y: %f, z: %f, yaw: %f", this->goal_.coordinates[0], this->goal_.coordinates[1],
+                                                     this->goal_.coordinates[2], this->goal_.coordinates[3]);
+    ROS_INFO("control -> steering: %f, speed: %f", this->direction_.angle, speed);
+    ROS_INFO("control -> angular: %f, linear: %f", this->twist_state_.angular.z, speed);
+    //////////////////////////////////////////////////////
 
     // [fill srv structure and make request to the server]
  
@@ -190,11 +198,23 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   yaw = (yaw * 180.0) / PI;
   ///////////////////////////////////////////////////////////
 
-
+  
+  double r = sqrt(pow(goal_base.point.x, 2) + pow(goal_base.point.y, 2));
+  double yaw_to_pose = asin(goal_base.point.y / r);
+  yaw_to_pose = (yaw_to_pose * 180.0) / PI;
+  if (goal_base.point.x < 0.0 && goal_base.point.y <= 0.0)
+  {
+    yaw_to_pose = -180 - yaw_to_pose;
+  }
+  else if (goal_base.point.x < 0.0 && goal_base.point.y > 0.0)
+  {
+    yaw_to_pose = 180 - yaw_to_pose;
+  }
+  
   this->goal_.coordinates.at(0) = goal_base.point.x;
   this->goal_.coordinates.at(1) = goal_base.point.y;
   this->goal_.coordinates.at(2) = goal_base.point.z;
-  this->goal_.coordinates.at(3) = yaw;
+  this->goal_.coordinates.at(3) = yaw_to_pose;
   this->goal_.matrix[0][0] = goal_msg->pose.covariance[0];
   this->goal_.matrix[1][1] = goal_msg->pose.covariance[7];
   this->goal_.matrix[2][2] = goal_msg->pose.covariance[14];
