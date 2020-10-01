@@ -90,7 +90,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
     this->ackermann_state_.drive.speed = speed;
     
     this->twist_state_.linear.x = speed;
-    this->twist_state_.angular.z = (speed / this->params_.l) * sin(this->direction_.angle);
+    this->twist_state_.angular.z = (speed / this->params_.l) * sin((this->direction_.angle*PI)/180.0);
     
     //////////////////////////////////////////////////////
     //// DEBUG
