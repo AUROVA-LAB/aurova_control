@@ -94,10 +94,12 @@ void AckermannControlAlgNode::mainNodeThread(void)
     
     //////////////////////////////////////////////////////
     //// DEBUG
+    /*
     ROS_INFO("goal -> x: %f, y: %f, z: %f, yaw: %f", this->goal_.coordinates[0], this->goal_.coordinates[1],
                                                      this->goal_.coordinates[2], this->goal_.coordinates[3]);
     ROS_INFO("control -> steering: %f, speed: %f", this->direction_.angle, speed);
     ROS_INFO("control -> angular: %f, linear: %f", this->twist_state_.angular.z, speed);
+    */
     //////////////////////////////////////////////////////
 
     // [fill srv structure and make request to the server]
