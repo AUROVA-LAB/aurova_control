@@ -78,7 +78,7 @@ int ControlDemoAlgorithm::controlLoop(geometry_msgs::PoseWithCovarianceStamped l
     //////////////////////////////////////////////////////////////////////
     ////// 3.b) GENERATE CONTROL SIGNALS FOR TWIST MSG
     twist_state.linear.x = speed;
-    twist_state.angular.z = (speed / d_vehicle) * sin(steering);
+    twist_state.angular.z = (speed / d_vehicle) * sin((steering*3.1416) / 180.0);
     
   }
 
