@@ -158,7 +158,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   ///// TRANSFORM TO BASE_LINK FARME
   geometry_msgs::PointStamped goal_tf;
   geometry_msgs::PointStamped goal_base;
-  goal_tf.header.frame_id = "odom"; //goal_msg->header.frame_id;
+  goal_tf.header.frame_id = "map"; //TODO goal_msg->header.frame_id;
   goal_tf.header.stamp = ros::Time(0); //ros::Time::now();
   goal_tf.point.x = goal_msg->pose.pose.position.x;
   goal_tf.point.y = goal_msg->pose.pose.position.y;
@@ -176,7 +176,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   
   geometry_msgs::QuaternionStamped orient_tf;
   geometry_msgs::QuaternionStamped orient_base;
-  orient_tf.header.frame_id = "odom"; //goal_msg->header.frame_id;
+  orient_tf.header.frame_id = "map"; //TODO goal_msg->header.frame_id;
   orient_tf.header.stamp = ros::Time(0);
   orient_tf.quaternion.x = goal_msg->pose.pose.orientation.x;
   orient_tf.quaternion.y = goal_msg->pose.pose.orientation.y;
