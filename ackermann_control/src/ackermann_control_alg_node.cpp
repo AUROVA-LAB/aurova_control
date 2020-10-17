@@ -11,6 +11,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   int vectors_size = 4;
   this->flag_odom_ = false;
   this->flag_goal_ = false;
+  this->public_node_handle_.getParam("/ackermann_control/frame_id", this->frame_id_);
   this->public_node_handle_.getParam("/ackermann_control/max_angle", this->params_.maxAngle);
   this->public_node_handle_.getParam("/ackermann_control/v_length", this->params_.l);
   this->public_node_handle_.getParam("/ackermann_control/v_width", this->params_.w);
@@ -158,7 +159,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   ///// TRANSFORM TO BASE_LINK FARME
   geometry_msgs::PointStamped goal_tf;
   geometry_msgs::PointStamped goal_base;
-  goal_tf.header.frame_id = "map"; //TODO goal_msg->header.frame_id;
+  goal_tf.header.frame_id = this->frame_id_;
   goal_tf.header.stamp = ros::Time(0); //ros::Time::now();
   goal_tf.point.x = goal_msg->pose.pose.position.x;
   goal_tf.point.y = goal_msg->pose.pose.position.y;
@@ -176,7 +177,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   
   geometry_msgs::QuaternionStamped orient_tf;
   geometry_msgs::QuaternionStamped orient_base;
-  orient_tf.header.frame_id = "map"; //TODO goal_msg->header.frame_id;
+  orient_tf.header.frame_id = this->frame_id_;
   orient_tf.header.stamp = ros::Time(0);
   orient_tf.quaternion.x = goal_msg->pose.pose.orientation.x;
   orient_tf.quaternion.y = goal_msg->pose.pose.orientation.y;

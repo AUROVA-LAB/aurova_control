@@ -50,6 +50,7 @@ private:
   bool flag_goal_;
   ackermann_msgs::AckermannDriveStamped ackermann_state_;
   geometry_msgs::Twist twist_state_;
+  std::string frame_id_;
   struct Pose pose_;
   struct Pose goal_;
   struct RobotParams params_;
