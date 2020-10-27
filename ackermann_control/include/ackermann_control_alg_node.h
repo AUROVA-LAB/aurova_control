@@ -28,9 +28,6 @@
 #include <iri_base_algorithm/iri_base_algorithm.h>
 #include "ackermann_control_alg.h"
 
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/point_cloud.h>
-
 #define PI 3.141592
 
 // [publisher subscriber headers]

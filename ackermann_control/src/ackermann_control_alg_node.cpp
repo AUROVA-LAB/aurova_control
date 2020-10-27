@@ -240,6 +240,14 @@ void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstP
   //std::cout << "AckermannControlAlgNode::cb_velodyne --> Velodyne msg received!" << std::endl;
   assert(velodyne_msg != NULL && "Null pointer!!! in function cb_velodyne!");
 
+  // We convert the input message to pcl pointcloud
+  pcl::PCLPointCloud2 aux;
+  pcl_conversions::toPCL(velodyne_ros_cloud_, aux);
+  pcl::fromPCLPointCloud2(aux, velodyne_pcl_cloud_);
+
+  // Then we remove the non-obstacle points
+  this->alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_);
+
   flag_velodyne_ = true;
   this->alg_.unlock();
 }

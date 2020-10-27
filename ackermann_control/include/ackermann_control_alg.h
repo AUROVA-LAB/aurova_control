@@ -34,6 +34,8 @@
 #include "nav_msgs/Odometry.h"
 #include <tf/transform_listener.h>
 #include <tf/tf.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
 
 //include ackermann_control_alg main library
 
@@ -134,6 +136,14 @@ class AckermannControlAlgorithm
     *
     */
     ~AckermannControlAlgorithm(void);
+
+    /**
+     * \brief naive non-obstacle points filter
+     *
+     * It just considers points below or above a threshold as non-obstacles and remove them
+     * from the pointcloud to check for collisions, it assumes that the robot moves on a single plane
+     */
+    void naiveNonObstaclePointsRemover(pcl::PointCloud<pcl::PointXYZI>& velodyne_pcl_cloud);
 };
 
 #endif
