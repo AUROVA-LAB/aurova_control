@@ -42,6 +42,9 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
       > ("/desired_ackermann_state", 1);
   this->twist_publisher_ = this->public_node_handle_.advertise < geometry_msgs::Twist > ("/cmd_vel", 1);
 
+  this->filtered_velodyne_publisher_ = this->public_node_handle_.advertise<sensor_msgs::PointCloud2>(
+      "/velodyne_close_obstacle_points", 1);
+
   // [init subscribers]
   this->odom_subscriber_ = this->public_node_handle_.subscribe("/odom", 1, &AckermannControlAlgNode::cb_getOdomMsg, this);
   this->pose_subscriber_ = this->public_node_handle_.subscribe("/pose_sim", 1, &AckermannControlAlgNode::cb_getPoseMsg, this);
@@ -114,6 +117,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
     // [publish messages]
     this->ackermann_publisher_.publish(this->ackermann_state_);
     this->twist_publisher_.publish(this->twist_state_);
+    this->filtered_velodyne_publisher_.publish(this->velodyne_ros_cloud_);
   }
 
 }
@@ -236,18 +240,21 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
 void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstPtr& velodyne_msg)
 {
   this->alg_.lock();
-  velodyne_ros_cloud_ = *velodyne_msg;
 
   //std::cout << "AckermannControlAlgNode::cb_velodyne --> Velodyne msg received!" << std::endl;
   assert(velodyne_msg != NULL && "Null pointer!!! in function cb_velodyne!");
 
   // We convert the input message to pcl pointcloud
   pcl::PCLPointCloud2 aux;
-  pcl_conversions::toPCL(velodyne_ros_cloud_, aux);
+  pcl_conversions::toPCL(*velodyne_msg, aux);
   pcl::fromPCLPointCloud2(aux, *velodyne_pcl_cloud_ptr_);
 
   // Then we remove the non-obstacle points
   this->alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_ptr_, *velodyne_pcl_cloud_ptr_);
+
+  // And pass to the output to visualize the filtering
+  toPCLPointCloud2(*velodyne_pcl_cloud_ptr_, aux);
+  pcl_conversions::fromPCL(aux, velodyne_ros_cloud_);
 
   flag_velodyne_ = true;
   this->alg_.unlock();

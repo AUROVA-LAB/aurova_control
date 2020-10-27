@@ -65,6 +65,7 @@ private:
   // [publisher attributes]
   ros::Publisher ackermann_publisher_;
   ros::Publisher twist_publisher_;
+  ros::Publisher filtered_velodyne_publisher_;
 
   // [subscriber attributes]
   ros::Subscriber goal_subscriber_;
