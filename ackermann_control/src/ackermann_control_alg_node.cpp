@@ -87,7 +87,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
     float k_sp = (this->v_max_ - this->v_min_) / this->params_.maxAngle;
     double speed = 0.0;
     std::cout << "Getting best steering!" << std::endl;
-    this->direction_ = this->control_->getBestSteering(this->pose_, this->goal_);
+    this->direction_ = this->control_->getBestSteeringWithObstacleDetection(this->pose_, this->goal_, velodyne_pcl_cloud_ptr_);
 
     switch (this->direction_.sense)
     {
@@ -176,7 +176,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   this->alg_.lock();
   
   ///////////////////////////////////////////////////////////
-  ///// TRANSFORM TO BASE_LINK FARME
+  ///// TRANSFORM TO BASE_LINK FRAME
   geometry_msgs::PointStamped goal_tf;
   geometry_msgs::PointStamped goal_base;
   goal_tf.header.frame_id = this->frame_id_;
