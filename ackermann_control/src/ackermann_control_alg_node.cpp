@@ -5,6 +5,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
 {
   //init class attributes if necessary
   this->loop_rate_ = 10; //in [Hz]
+  this->velodyne_pcl_cloud_ptr_ = pcl::PointCloud<pcl::PointXYZI>::Ptr(new pcl::PointCloud<pcl::PointXYZI>);
 
   //get application parameters
   double t_length, delta_time, delta_angle, t_velocity;
@@ -243,10 +244,10 @@ void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstP
   // We convert the input message to pcl pointcloud
   pcl::PCLPointCloud2 aux;
   pcl_conversions::toPCL(velodyne_ros_cloud_, aux);
-  pcl::fromPCLPointCloud2(aux, velodyne_pcl_cloud_);
+  pcl::fromPCLPointCloud2(aux, *velodyne_pcl_cloud_ptr_);
 
   // Then we remove the non-obstacle points
-  this->alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_);
+  this->alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_ptr_, *velodyne_pcl_cloud_ptr_);
 
   flag_velodyne_ = true;
   this->alg_.unlock();

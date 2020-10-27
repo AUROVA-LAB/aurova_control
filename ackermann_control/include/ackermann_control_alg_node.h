@@ -60,7 +60,7 @@ private:
   tf::TransformListener listener_;
 
   sensor_msgs::PointCloud2 velodyne_ros_cloud_;
-  pcl::PointCloud<pcl::PointXYZI> velodyne_pcl_cloud_;
+  pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl_cloud_ptr_;
 
   // [publisher attributes]
   ros::Publisher ackermann_publisher_;

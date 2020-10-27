@@ -36,6 +36,7 @@
 #include <tf/tf.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
+#include <pcl/filters/passthrough.h>
 
 //include ackermann_control_alg main library
 
@@ -143,7 +144,8 @@ class AckermannControlAlgorithm
      * It just considers points below or above a threshold as non-obstacles and remove them
      * from the pointcloud to check for collisions, it assumes that the robot moves on a single plane
      */
-    void naiveNonObstaclePointsRemover(pcl::PointCloud<pcl::PointXYZI>& velodyne_pcl_cloud);
+    void naiveNonObstaclePointsRemover(const pcl::PointCloud<pcl::PointXYZI>::Ptr input,
+                                       pcl::PointCloud<pcl::PointXYZI>& output);
 };
 
 #endif
