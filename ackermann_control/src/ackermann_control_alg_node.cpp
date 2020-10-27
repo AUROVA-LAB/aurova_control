@@ -12,6 +12,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   int vectors_size = 4;
   this->flag_odom_ = false;
   this->flag_goal_ = false;
+  this->flag_velodyne_ = false;
   this->public_node_handle_.getParam("/ackermann_control/frame_id", this->frame_id_);
   this->public_node_handle_.getParam("/ackermann_control/max_angle", this->params_.maxAngle);
   this->public_node_handle_.getParam("/ackermann_control/v_length", this->params_.l);
@@ -73,12 +74,19 @@ AckermannControlAlgNode::~AckermannControlAlgNode(void)
 void AckermannControlAlgNode::mainNodeThread(void)
 {
 
-   if (this->flag_odom_ && this->flag_goal_ && this->flag_velodyne_)
-   {
+   //if (this->flag_odom_ && this->flag_goal_ && this->flag_velodyne_)
+  if(this->flag_velodyne_)
+  {
+    this->velodyne_mutex_enter();
+    std::cout << "Reset flags!" << std::endl;
+    flag_odom_ = false;
+    flag_goal_ = false;
+    flag_velodyne_ =  false;
 
     // [fill msg structures]
     float k_sp = (this->v_max_ - this->v_min_) / this->params_.maxAngle;
     double speed = 0.0;
+    std::cout << "Getting best steering!" << std::endl;
     this->direction_ = this->control_->getBestSteering(this->pose_, this->goal_);
 
     switch (this->direction_.sense)
@@ -94,6 +102,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
         break;
     }
     
+    std::cout << "Preparing outputs!" << std::endl;
     this->ackermann_state_.drive.steering_angle = this->direction_.angle;
     this->ackermann_state_.drive.speed = speed;
     
@@ -115,9 +124,12 @@ void AckermannControlAlgNode::mainNodeThread(void)
     // [fill action structure and make request to the action server]
 
     // [publish messages]
+    std::cout << "Publishing messages!!" << std::endl;
     this->ackermann_publisher_.publish(this->ackermann_state_);
     this->twist_publisher_.publish(this->twist_state_);
     this->filtered_velodyne_publisher_.publish(this->velodyne_ros_cloud_);
+    this->velodyne_pcl_cloud_ptr_->clear(); // Cleaning up to prepare next iteration
+    this->velodyne_mutex_exit();
   }
 
 }
@@ -239,9 +251,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
 
 void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstPtr& velodyne_msg)
 {
-  this->alg_.lock();
-
-  //std::cout << "AckermannControlAlgNode::cb_velodyne --> Velodyne msg received!" << std::endl;
+  std::cout << "AckermannControlAlgNode::cb_velodyne --> Velodyne msg received!" << std::endl;
   assert(velodyne_msg != NULL && "Null pointer!!! in function cb_velodyne!");
 
   // We convert the input message to pcl pointcloud
@@ -257,9 +267,18 @@ void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstP
   pcl_conversions::fromPCL(aux, velodyne_ros_cloud_);
 
   flag_velodyne_ = true;
-  this->alg_.unlock();
 }
 
+
+void AckermannControlAlgNode::velodyne_mutex_enter(void)
+{
+  pthread_mutex_lock(&this->velodyne_mutex_);
+}
+
+void AckermannControlAlgNode::velodyne_mutex_exit(void)
+{
+  pthread_mutex_unlock(&this->velodyne_mutex_);
+}
 
 /*  [service callbacks] */
 
