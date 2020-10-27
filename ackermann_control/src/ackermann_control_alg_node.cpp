@@ -74,8 +74,8 @@ AckermannControlAlgNode::~AckermannControlAlgNode(void)
 void AckermannControlAlgNode::mainNodeThread(void)
 {
 
-   //if (this->flag_odom_ && this->flag_goal_ && this->flag_velodyne_)
-  if(this->flag_velodyne_)
+  if (this->flag_odom_ && this->flag_goal_ && this->flag_velodyne_)
+  //if(this->flag_velodyne_) // just for debugging
   {
     this->velodyne_mutex_enter();
     std::cout << "Reset flags!" << std::endl;
