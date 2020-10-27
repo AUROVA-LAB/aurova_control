@@ -47,6 +47,9 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   this->goal_subscriber_ = this->public_node_handle_.subscribe("/semilocal_goal", 1,
                                                                &AckermannControlAlgNode::cb_getGoalMsg, this);
 
+  this->velodyne_subscriber_ = this->public_node_handle_.subscribe("/velodyne_points", 1,
+                                                                   &AckermannControlAlgNode::cb_velodyne, this);
+
   // [init subscribers]
 
   // [init services]
@@ -66,7 +69,7 @@ AckermannControlAlgNode::~AckermannControlAlgNode(void)
 void AckermannControlAlgNode::mainNodeThread(void)
 {
 
-   if (this->flag_odom_ && this->flag_goal_)
+   if (this->flag_odom_ && this->flag_goal_ && this->flag_velodyne_)
    {
 
     // [fill msg structures]
@@ -227,6 +230,20 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
 
   this->alg_.unlock();
 }
+
+
+void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstPtr& velodyne_msg)
+{
+  this->alg_.lock();
+  velodyne_ros_cloud_ = *velodyne_msg;
+
+  //std::cout << "AckermannControlAlgNode::cb_velodyne --> Velodyne msg received!" << std::endl;
+  assert(velodyne_msg != NULL && "Null pointer!!! in function cb_velodyne!");
+
+  flag_velodyne_ = true;
+  this->alg_.unlock();
+}
+
 
 /*  [service callbacks] */
 

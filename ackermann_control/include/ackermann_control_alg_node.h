@@ -28,6 +28,9 @@
 #include <iri_base_algorithm/iri_base_algorithm.h>
 #include "ackermann_control_alg.h"
 
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+
 #define PI 3.141592
 
 // [publisher subscriber headers]
@@ -48,6 +51,7 @@ private:
   float v_max_;
   bool flag_odom_;
   bool flag_goal_;
+  bool flag_velodyne_;
   ackermann_msgs::AckermannDriveStamped ackermann_state_;
   geometry_msgs::Twist twist_state_;
   std::string frame_id_;
@@ -58,6 +62,9 @@ private:
   Steering_Control *control_;
   tf::TransformListener listener_;
 
+  sensor_msgs::PointCloud2 velodyne_ros_cloud_;
+  pcl::PointCloud<pcl::PointXYZI> velodyne_pcl_cloud_;
+
   // [publisher attributes]
   ros::Publisher ackermann_publisher_;
   ros::Publisher twist_publisher_;
@@ -66,6 +73,7 @@ private:
   ros::Subscriber goal_subscriber_;
   ros::Subscriber pose_subscriber_;
   ros::Subscriber odom_subscriber_;
+  ros::Subscriber velodyne_subscriber_;
 
   /**
    * \brief callback for read pose messages
@@ -87,6 +95,11 @@ private:
    * execution of the node.
    */
   void cb_getGoalMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& goal_msg);
+
+  /**
+   * \brief callback to read velodyne messages
+   */
+  void cb_velodyne(const sensor_msgs::PointCloud2::ConstPtr& velodyne_msg);
 
   // [subscriber attributes]
 

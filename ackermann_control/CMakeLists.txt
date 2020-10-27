@@ -8,7 +8,11 @@ find_package(Eigen3 REQUIRED)
 # ******************************************************************** 
 #                 Add catkin additional components here
 # ******************************************************************** 
-find_package(catkin REQUIRED COMPONENTS iri_base_algorithm tf)
+find_package(catkin REQUIRED COMPONENTS iri_base_algorithm 
+                                        tf
+                                        sensor_msgs
+                                        pcl_ros
+                                        pcl_conversions)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -16,7 +20,7 @@ find_package(catkin REQUIRED COMPONENTS iri_base_algorithm tf)
 # ******************************************************************** 
 #           Add system and labrobotica dependencies here
 # ******************************************************************** 
-# find_package(<dependency> REQUIRED)
+find_package(PCL REQUIRED)
 
 # ******************************************************************** 
 #           Add topic, service and action definition here
@@ -63,6 +67,9 @@ catkin_package(
 #            Add ROS and IRI ROS run time dependencies
 # ******************************************************************** 
  CATKIN_DEPENDS iri_base_algorithm
+                sensor_msgs
+                pcl_ros
+                pcl_conversions
 # ******************************************************************** 
 #      Add system and labrobotica run time dependencies here
 # ******************************************************************** 
@@ -79,6 +86,7 @@ catkin_package(
 include_directories(include)
 include_directories(${catkin_INCLUDE_DIRS})
 include_directories(${EIGEN_INCLUDE_DIR})
+include_directories(${PCL_INCLUDE_DIRS})
 # include_directories(${<dependency>_INCLUDE_DIR})
 
 ## Declare a cpp library
@@ -92,6 +100,7 @@ add_executable(${PROJECT_NAME} src/ackermann_control_alg.cpp src/ackermann_contr
 # ******************************************************************** 
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} steering)
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES})
 # target_link_libraries(${PROJECT_NAME} ${<dependency>_LIBRARY})
 
 # ******************************************************************** 
