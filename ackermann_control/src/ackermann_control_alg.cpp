@@ -30,8 +30,8 @@ void AckermannControlAlgorithm::naiveNonObstaclePointsRemover(const pcl::PointCl
                                     // omnidirectional it can advance this much
                                     // either in x or y coordinates
 
-  float sensor_height = 1.2;
-  float min_obstacle_height = 0.25;
+  float sensor_height = 1.1;
+  float min_obstacle_height = 0.35;
   float safety_margin_above_sensor = 0.3;
 
   // Create the filtering object

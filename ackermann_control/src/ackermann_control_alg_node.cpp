@@ -5,7 +5,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
 {
   //init class attributes if necessary
   this->loop_rate_ = 10; //in [Hz]
-  this->velodyne_pcl_cloud_ptr_ = pcl::PointCloud<pcl::PointXYZI>::Ptr(new pcl::PointCloud<pcl::PointXYZI>);
+  this->velodyne_pcl_cloud_ptr_ = pcl::PointCloud < pcl::PointXYZI > ::Ptr(new pcl::PointCloud<pcl::PointXYZI>);
 
   //get application parameters
   double t_length, delta_time, delta_angle, t_velocity;
@@ -43,12 +43,14 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
       > ("/desired_ackermann_state", 1);
   this->twist_publisher_ = this->public_node_handle_.advertise < geometry_msgs::Twist > ("/cmd_vel", 1);
 
-  this->filtered_velodyne_publisher_ = this->public_node_handle_.advertise<sensor_msgs::PointCloud2>(
-      "/velodyne_close_obstacle_points", 1);
+  this->filtered_velodyne_publisher_ = this->public_node_handle_.advertise < sensor_msgs::PointCloud2
+      > ("/velodyne_close_obstacle_points", 1);
 
   // [init subscribers]
-  this->odom_subscriber_ = this->public_node_handle_.subscribe("/odom", 1, &AckermannControlAlgNode::cb_getOdomMsg, this);
-  this->pose_subscriber_ = this->public_node_handle_.subscribe("/pose_sim", 1, &AckermannControlAlgNode::cb_getPoseMsg, this);
+  this->odom_subscriber_ = this->public_node_handle_.subscribe("/odom", 1, &AckermannControlAlgNode::cb_getOdomMsg,
+                                                               this);
+  this->pose_subscriber_ = this->public_node_handle_.subscribe("/pose_sim", 1, &AckermannControlAlgNode::cb_getPoseMsg,
+                                                               this);
   this->goal_subscriber_ = this->public_node_handle_.subscribe("/semilocal_goal", 1,
                                                                &AckermannControlAlgNode::cb_getGoalMsg, this);
 
@@ -78,16 +80,17 @@ void AckermannControlAlgNode::mainNodeThread(void)
   //if(this->flag_velodyne_) // just for debugging
   {
     this->velodyne_mutex_enter();
-    std::cout << "Reset flags!" << std::endl;
+    //std::cout << "Reset flags!" << std::endl;
     flag_odom_ = false;
     flag_goal_ = false;
-    flag_velodyne_ =  false;
+    flag_velodyne_ = false;
 
     // [fill msg structures]
     float k_sp = (this->v_max_ - this->v_min_) / this->params_.maxAngle;
     double speed = 0.0;
-    std::cout << "Getting best steering!" << std::endl;
-    this->direction_ = this->control_->getBestSteeringWithObstacleDetection(this->pose_, this->goal_, velodyne_pcl_cloud_ptr_);
+    //std::cout << "Getting best steering!" << std::endl;
+    this->direction_ = this->control_->getBestSteeringWithObstacleDetection(this->pose_, this->goal_,
+                                                                            velodyne_pcl_cloud_ptr_);
 
     switch (this->direction_.sense)
     {
@@ -101,37 +104,46 @@ void AckermannControlAlgNode::mainNodeThread(void)
         speed = -1 * (this->v_max_ - fabs(this->direction_.angle) * k_sp);
         break;
     }
-    
-    std::cout << "Preparing outputs!" << std::endl;
+
+    //std::cout << "Preparing outputs!" << std::endl;
     this->ackermann_state_.drive.steering_angle = this->direction_.angle;
     this->ackermann_state_.drive.speed = speed;
-    
+
     this->twist_state_.linear.x = speed;
-    this->twist_state_.angular.z = (speed / this->params_.l) * sin((this->direction_.angle*PI)/180.0);
-    
+    this->twist_state_.angular.z = (speed / this->params_.l) * sin((this->direction_.angle * PI) / 180.0);
+
     //////////////////////////////////////////////////////
     //// DEBUG
     /*
-    ROS_INFO("goal -> x: %f, y: %f, z: %f, yaw: %f", this->goal_.coordinates[0], this->goal_.coordinates[1],
-                                                     this->goal_.coordinates[2], this->goal_.coordinates[3]);
-    ROS_INFO("control -> steering: %f, speed: %f", this->direction_.angle, speed);
-    ROS_INFO("control -> angular: %f, linear: %f", this->twist_state_.angular.z, speed);
-    */
+     ROS_INFO("goal -> x: %f, y: %f, z: %f, yaw: %f", this->goal_.coordinates[0], this->goal_.coordinates[1],
+     this->goal_.coordinates[2], this->goal_.coordinates[3]);
+     ROS_INFO("control -> steering: %f, speed: %f", this->direction_.angle, speed);
+     ROS_INFO("control -> angular: %f, linear: %f", this->twist_state_.angular.z, speed);
+     */
     //////////////////////////////////////////////////////
-
     // [fill srv structure and make request to the server]
- 
     // [fill action structure and make request to the action server]
-
     // [publish messages]
-    std::cout << "Publishing messages!!" << std::endl;
+    //std::cout << "Publishing messages!!" << std::endl;
     this->ackermann_publisher_.publish(this->ackermann_state_);
     this->twist_publisher_.publish(this->twist_state_);
     this->filtered_velodyne_publisher_.publish(this->velodyne_ros_cloud_);
     this->velodyne_pcl_cloud_ptr_->clear(); // Cleaning up to prepare next iteration
     this->velodyne_mutex_exit();
+    flag_velodyne_ = false;
   }
-
+  else
+  {
+    if (this->flag_velodyne_)
+    {
+      //std::cout << "Publishing only velodyne message!!" << std::endl;
+      this->velodyne_mutex_enter();
+      this->filtered_velodyne_publisher_.publish(this->velodyne_ros_cloud_);
+      this->velodyne_pcl_cloud_ptr_->clear(); // Cleaning up to prepare next iteration
+      this->velodyne_mutex_exit();
+      flag_velodyne_ = false;
+    }
+  }
 }
 
 /*  [subscriber callbacks] */
@@ -148,7 +160,7 @@ void AckermannControlAlgNode::cb_getPoseMsg(const geometry_msgs::PoseWithCovaria
   this->pose_.matrix[1][1] = pose_msg->pose.covariance[7];
   this->pose_.matrix[2][2] = pose_msg->pose.covariance[14];
   this->pose_.matrix[3][3] = pose_msg->pose.covariance[35];
-  
+
   this->flag_odom_ = true;
 
   this->alg_.unlock();
@@ -166,7 +178,7 @@ void AckermannControlAlgNode::cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& 
   this->pose_.matrix[1][1] = odom_msg->pose.covariance[7];
   this->pose_.matrix[2][2] = odom_msg->pose.covariance[14];
   this->pose_.matrix[3][3] = odom_msg->pose.covariance[35];
-  
+
   this->flag_odom_ = true;
 
   this->alg_.unlock();
@@ -174,7 +186,7 @@ void AckermannControlAlgNode::cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& 
 void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& goal_msg)
 {
   this->alg_.lock();
-  
+
   ///////////////////////////////////////////////////////////
   ///// TRANSFORM TO BASE_LINK FRAME
   geometry_msgs::PointStamped goal_tf;
@@ -194,7 +206,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
     ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
     return;
   }
-  
+
   geometry_msgs::QuaternionStamped orient_tf;
   geometry_msgs::QuaternionStamped orient_base;
   orient_tf.header.frame_id = this->frame_id_;
@@ -214,14 +226,13 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
     return;
   }
   double roll, pitch, yaw;
-  tf::Quaternion q_pose(orient_base.quaternion.x, orient_base.quaternion.y,
-                        orient_base.quaternion.z, orient_base.quaternion.w);
+  tf::Quaternion q_pose(orient_base.quaternion.x, orient_base.quaternion.y, orient_base.quaternion.z,
+                        orient_base.quaternion.w);
   tf::Matrix3x3 m_pose(q_pose);
   m_pose.getRPY(roll, pitch, yaw);
   yaw = (yaw * 180.0) / PI;
   ///////////////////////////////////////////////////////////
 
-  
   double r = sqrt(pow(goal_base.point.x, 2) + pow(goal_base.point.y, 2));
   double yaw_to_pose = asin(goal_base.point.y / r);
   yaw_to_pose = (yaw_to_pose * 180.0) / PI;
@@ -233,7 +244,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   {
     yaw_to_pose = 180 - yaw_to_pose;
   }
-  
+
   this->goal_.coordinates.at(0) = goal_base.point.x;
   this->goal_.coordinates.at(1) = goal_base.point.y;
   this->goal_.coordinates.at(2) = goal_base.point.z;
@@ -242,16 +253,15 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   this->goal_.matrix[1][1] = goal_msg->pose.covariance[7];
   this->goal_.matrix[2][2] = goal_msg->pose.covariance[14];
   this->goal_.matrix[3][3] = goal_msg->pose.covariance[35];
-  
+
   this->flag_goal_ = true;
 
   this->alg_.unlock();
 }
 
-
 void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstPtr& velodyne_msg)
 {
-  std::cout << "AckermannControlAlgNode::cb_velodyne --> Velodyne msg received!" << std::endl;
+  //std::cout << "AckermannControlAlgNode::cb_velodyne --> Velodyne msg received!" << std::endl;
   assert(velodyne_msg != NULL && "Null pointer!!! in function cb_velodyne!");
 
   // We convert the input message to pcl pointcloud
@@ -268,7 +278,6 @@ void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstP
 
   flag_velodyne_ = true;
 }
-
 
 void AckermannControlAlgNode::velodyne_mutex_enter(void)
 {
