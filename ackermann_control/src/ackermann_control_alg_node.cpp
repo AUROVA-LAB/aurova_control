@@ -37,7 +37,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
     this->goal_.matrix[i].resize(vectors_size);
 
   // [init publishers]
-  this->ackermann_publisher_ = this->public_node_handle_.advertise < ackermann_msgs::AckermannDriveStamped
+  this->ackermann_publisher_ = this->public_node_handle_.advertise < ackermann_msgs::AckermannDrive
       > ("/desired_ackermann_state", 1);
   this->twist_publisher_ = this->public_node_handle_.advertise < geometry_msgs::Twist > ("/cmd_vel", 1);
 
@@ -87,7 +87,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
         break;
     }
     
-    this->ackermann_state_.drive.steering_angle = this->direction_.angle;
+    this->ackermann_state_.drive.steering_angle = (this->direction_.angle*PI)/180.0;
     this->ackermann_state_.drive.speed = speed;
     
     this->twist_state_.linear.x = speed;
@@ -108,7 +108,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
     // [fill action structure and make request to the action server]
 
     // [publish messages]
-    this->ackermann_publisher_.publish(this->ackermann_state_);
+    this->ackermann_publisher_.publish(this->ackermann_state_.drive);
     this->twist_publisher_.publish(this->twist_state_);
   }
 
