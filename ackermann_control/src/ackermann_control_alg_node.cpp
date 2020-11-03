@@ -73,7 +73,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
     goal_.matrix[i].resize(vectors_size);
 
   // [init publishers]
-  ackermann_publisher_ = public_node_handle_.advertise < ackermann_msgs::AckermannDriveStamped
+  ackermann_publisher_ = public_node_handle_.advertise < ackermann_msgs::AckermannDrive
       > ("/desired_ackermann_state", 1);
   twist_publisher_ = public_node_handle_.advertise < geometry_msgs::Twist > ("/cmd_vel", 1);
 
@@ -137,7 +137,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
     }
 
     //std::cout << "Preparing outputs!" << std::endl;
-    ackermann_state_.drive.steering_angle = direction_.angle;
+    ackermann_state_.drive.steering_angle = direction_.angle * M_PI / 180.0;
     ackermann_state_.drive.speed = speed;
 
     twist_state_.linear.x = speed;
@@ -156,7 +156,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
     // [fill action structure and make request to the action server]
     // [publish messages]
     //std::cout << "Publishing messages!!" << std::endl;
-    ackermann_publisher_.publish(ackermann_state_);
+    ackermann_publisher_.publish(ackermann_state_.drive);
     twist_publisher_.publish(twist_state_);
     filtered_velodyne_publisher_.publish(velodyne_ros_cloud_);
     velodyne_pcl_cloud_ptr_->clear(); // Cleaning up to prepare next iteration
