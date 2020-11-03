@@ -28,8 +28,6 @@
 #include <iri_base_algorithm/iri_base_algorithm.h>
 #include "ackermann_control_alg.h"
 
-#define PI 3.141592
-
 // [publisher subscriber headers]
 
 // [service client headers]
@@ -44,19 +42,26 @@ class AckermannControlAlgNode : public algorithm_base::IriBaseAlgorithm<Ackerman
 {
 private:
 
-  float v_min_;
-  float v_max_;
+private:
+
+  struct RobotParams robot_params_;
+  struct AckermannPredictionParams ackermann_prediction_params_;
+  struct AckermannControlParams ackermann_control_params_;
+  struct CollisionAvoidanceParams collision_avoidance_params_;
+
+  struct Pose pose_;
+  struct Pose goal_;
+  struct Direction direction_;
+
   bool flag_odom_;
   bool flag_goal_;
   bool flag_velodyne_;
+
   ackermann_msgs::AckermannDriveStamped ackermann_state_;
   geometry_msgs::Twist twist_state_;
   std::string frame_id_;
-  struct Pose pose_;
-  struct Pose goal_;
-  struct RobotParams params_;
-  struct Direction direction_;
-  Steering_Control *control_;
+
+  SteeringControl *control_;
   tf::TransformListener listener_;
 
   sensor_msgs::PointCloud2 velodyne_ros_cloud_;
@@ -83,7 +88,7 @@ private:
    * execution of the node.
    */
   void cb_getPoseMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& pose_msg);
-  
+
   /**
    * \brief callback for read pose messages
    * This message can be read from different localization sources by remapping in the
