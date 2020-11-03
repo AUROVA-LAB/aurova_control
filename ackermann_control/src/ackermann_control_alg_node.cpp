@@ -14,6 +14,8 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   flag_velodyne_ = false;
 
   public_node_handle_.getParam("/ackermann_control/frame_id", frame_id_);
+  public_node_handle_.getParam("/ackermann_control/control_in_map_frame", control_in_map_frame_);
+
   public_node_handle_.getParam("/ackermann_control/robot_x_distance_from_velodyne_to_base_link",
                                robot_params_.x_distance_from_velodyne_to_base_link);
   public_node_handle_.getParam("/ackermann_control/robot_x_distance_from_velodyne_to_front",
@@ -178,17 +180,57 @@ void AckermannControlAlgNode::mainNodeThread(void)
 /*  [subscriber callbacks] */
 void AckermannControlAlgNode::cb_getPoseMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& pose_msg)
 {
+  //std::cout << "AckermannControlAlgNode::cb_getPoseMsg --> pose_msg received!" << std::endl;
   alg_.lock();
 
-  // in base_link frame
-  pose_.coordinates.at(0) = 0.0;
-  pose_.coordinates.at(1) = 0.0;
-  pose_.coordinates.at(2) = 0.0;
-  pose_.coordinates.at(3) = 0.0;
-  pose_.matrix[0][0] = pose_msg->pose.covariance[0];
-  pose_.matrix[1][1] = pose_msg->pose.covariance[7];
-  pose_.matrix[2][2] = pose_msg->pose.covariance[14];
-  pose_.matrix[3][3] = pose_msg->pose.covariance[35];
+  if (control_in_map_frame_)
+  {
+    pose_.coordinates.at(0) = pose_msg->pose.pose.position.x;
+    pose_.coordinates.at(1) = pose_msg->pose.pose.position.y;
+    pose_.coordinates.at(2) = pose_msg->pose.pose.position.z;
+
+    double roll, pitch, yaw_rad, yaw_deg;
+    tf::Quaternion q_pose(pose_msg->pose.pose.orientation.x, pose_msg->pose.pose.orientation.y,
+                          pose_msg->pose.pose.orientation.z, pose_msg->pose.pose.orientation.w);
+    tf::Matrix3x3 m_pose(q_pose);
+    m_pose.getRPY(roll, pitch, yaw_rad);
+    yaw_deg = yaw_rad * 180.0 / M_PI;
+
+    pose_.coordinates.at(3) = yaw_deg;
+
+    pose_.matrix[0][0] = pose_msg->pose.covariance[0]; //x    variance
+    pose_.matrix[0][1] = pose_msg->pose.covariance[1]; //xy   covariance
+    pose_.matrix[0][2] = pose_msg->pose.covariance[2]; //xz   covariance
+    pose_.matrix[0][3] = pose_msg->pose.covariance[5]; //xyaw covariance
+
+    pose_.matrix[1][0] = pose_msg->pose.covariance[6]; //yx   covariance
+    pose_.matrix[1][1] = pose_msg->pose.covariance[7]; //y    variance
+    pose_.matrix[1][2] = pose_msg->pose.covariance[8]; //yz   covariance
+    pose_.matrix[1][3] = pose_msg->pose.covariance[11]; //yyaw covariance
+
+    pose_.matrix[2][0] = pose_msg->pose.covariance[12]; //zx   covariance
+    pose_.matrix[2][1] = pose_msg->pose.covariance[13]; //zy   covariance
+    pose_.matrix[2][2] = pose_msg->pose.covariance[14]; //z    variance
+    pose_.matrix[2][3] = pose_msg->pose.covariance[17]; //zyaw variance
+
+    pose_.matrix[3][0] = pose_msg->pose.covariance[30]; //yawx covariance
+    pose_.matrix[3][1] = pose_msg->pose.covariance[31]; //yawy covariance
+    pose_.matrix[3][3] = pose_msg->pose.covariance[32]; //yawz covariance
+    pose_.matrix[3][3] = pose_msg->pose.covariance[35]; //yaw  variance
+  }
+  else
+  {
+    // in base_link frame
+    pose_.coordinates.at(0) = 0.0;
+    pose_.coordinates.at(1) = 0.0;
+    pose_.coordinates.at(2) = 0.0;
+    pose_.coordinates.at(3) = 0.0;
+
+    pose_.matrix[0][0] = pose_msg->pose.covariance[0];
+    pose_.matrix[1][1] = pose_msg->pose.covariance[7];
+    pose_.matrix[2][2] = pose_msg->pose.covariance[14];
+    pose_.matrix[3][3] = pose_msg->pose.covariance[35];
+  }
 
   flag_odom_ = true;
 
@@ -196,17 +238,57 @@ void AckermannControlAlgNode::cb_getPoseMsg(const geometry_msgs::PoseWithCovaria
 }
 void AckermannControlAlgNode::cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& odom_msg)
 {
+  //std::cout << "AckermannControlAlgNode::cb_getOdomMsg --> odom_msg received!" << std::endl;
   alg_.lock();
 
-  // in base_link frame
-  pose_.coordinates.at(0) = 0.0;
-  pose_.coordinates.at(1) = 0.0;
-  pose_.coordinates.at(2) = 0.0;
-  pose_.coordinates.at(3) = 0.0;
-  pose_.matrix[0][0] = odom_msg->pose.covariance[0];
-  pose_.matrix[1][1] = odom_msg->pose.covariance[7];
-  pose_.matrix[2][2] = odom_msg->pose.covariance[14];
-  pose_.matrix[3][3] = odom_msg->pose.covariance[35];
+  if (control_in_map_frame_)
+  {
+    pose_.coordinates.at(0) = odom_msg->pose.pose.position.x;
+    pose_.coordinates.at(1) = odom_msg->pose.pose.position.y;
+    pose_.coordinates.at(2) = odom_msg->pose.pose.position.z;
+
+    double roll, pitch, yaw_rad, yaw_deg;
+    tf::Quaternion q_pose(odom_msg->pose.pose.orientation.x, odom_msg->pose.pose.orientation.y,
+                          odom_msg->pose.pose.orientation.z, odom_msg->pose.pose.orientation.w);
+    tf::Matrix3x3 m_pose(q_pose);
+    m_pose.getRPY(roll, pitch, yaw_rad);
+    yaw_deg = yaw_rad * 180.0 / M_PI;
+
+    pose_.coordinates.at(3) = yaw_deg;
+
+    pose_.matrix[0][0] = odom_msg->pose.covariance[0]; //x    variance
+    pose_.matrix[0][1] = odom_msg->pose.covariance[1]; //xy   covariance
+    pose_.matrix[0][2] = odom_msg->pose.covariance[2]; //xz   covariance
+    pose_.matrix[0][3] = odom_msg->pose.covariance[5]; //xyaw covariance
+
+    pose_.matrix[1][0] = odom_msg->pose.covariance[6]; //yx   covariance
+    pose_.matrix[1][1] = odom_msg->pose.covariance[7]; //y    variance
+    pose_.matrix[1][2] = odom_msg->pose.covariance[8]; //yz   covariance
+    pose_.matrix[1][3] = odom_msg->pose.covariance[11]; //yyaw covariance
+
+    pose_.matrix[2][0] = odom_msg->pose.covariance[12]; //zx   covariance
+    pose_.matrix[2][1] = odom_msg->pose.covariance[13]; //zy   covariance
+    pose_.matrix[2][2] = odom_msg->pose.covariance[14]; //z    variance
+    pose_.matrix[2][3] = odom_msg->pose.covariance[17]; //zyaw variance
+
+    pose_.matrix[3][0] = odom_msg->pose.covariance[30]; //yawx covariance
+    pose_.matrix[3][1] = odom_msg->pose.covariance[31]; //yawy covariance
+    pose_.matrix[3][3] = odom_msg->pose.covariance[32]; //yawz covariance
+    pose_.matrix[3][3] = odom_msg->pose.covariance[35]; //yaw  variance
+  }
+  else
+  {
+    // in base_link frame
+    pose_.coordinates.at(0) = 0.0;
+    pose_.coordinates.at(1) = 0.0;
+    pose_.coordinates.at(2) = 0.0;
+    pose_.coordinates.at(3) = 0.0;
+
+    pose_.matrix[0][0] = odom_msg->pose.covariance[0];
+    pose_.matrix[1][1] = odom_msg->pose.covariance[7];
+    pose_.matrix[2][2] = odom_msg->pose.covariance[14];
+    pose_.matrix[3][3] = odom_msg->pose.covariance[35];
+  }
 
   flag_odom_ = true;
 
@@ -214,73 +296,114 @@ void AckermannControlAlgNode::cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& 
 }
 void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& goal_msg)
 {
+  //std::cout << "AckermannControlAlgNode::cb_getGoalMsg --> goal_msg received!" << std::endl;
   alg_.lock();
 
-  ///////////////////////////////////////////////////////////
-  ///// TRANSFORM TO BASE_LINK FRAME
-  geometry_msgs::PointStamped goal_tf;
-  geometry_msgs::PointStamped goal_base;
-  goal_tf.header.frame_id = frame_id_;
-  goal_tf.header.stamp = ros::Time(0); //ros::Time::now();
-  goal_tf.point.x = goal_msg->pose.pose.position.x;
-  goal_tf.point.y = goal_msg->pose.pose.position.y;
-  goal_tf.point.z = goal_msg->pose.pose.position.z;
-  try
+  if (control_in_map_frame_)
   {
-    listener_.transformPoint("base_link", goal_tf, goal_base);
+    goal_.coordinates.at(0) = goal_msg->pose.pose.position.x;
+    goal_.coordinates.at(1) = goal_msg->pose.pose.position.y;
+    goal_.coordinates.at(2) = goal_msg->pose.pose.position.z;
 
-  }
-  catch (tf::TransformException& ex)
-  {
-    ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
-    return;
-  }
+    double roll, pitch, yaw_rad, yaw_deg;
+    tf::Quaternion q_pose(goal_msg->pose.pose.orientation.x, goal_msg->pose.pose.orientation.y,
+                          goal_msg->pose.pose.orientation.z, goal_msg->pose.pose.orientation.w);
+    tf::Matrix3x3 m_pose(q_pose);
+    m_pose.getRPY(roll, pitch, yaw_rad);
+    yaw_deg = yaw_rad * 180.0 / M_PI;
 
-  geometry_msgs::QuaternionStamped orient_tf;
-  geometry_msgs::QuaternionStamped orient_base;
-  orient_tf.header.frame_id = frame_id_;
-  orient_tf.header.stamp = ros::Time(0);
-  orient_tf.quaternion.x = goal_msg->pose.pose.orientation.x;
-  orient_tf.quaternion.y = goal_msg->pose.pose.orientation.y;
-  orient_tf.quaternion.z = goal_msg->pose.pose.orientation.z;
-  orient_tf.quaternion.w = goal_msg->pose.pose.orientation.w;
-  try
-  {
-    listener_.transformQuaternion("base_link", orient_tf, orient_base);
-  }
-  catch (tf::TransformException& ex)
-  {
-    ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
-    return;
-  }
-  double roll, pitch, yaw;
-  tf::Quaternion q_pose(orient_base.quaternion.x, orient_base.quaternion.y, orient_base.quaternion.z,
-                        orient_base.quaternion.w);
-  tf::Matrix3x3 m_pose(q_pose);
-  m_pose.getRPY(roll, pitch, yaw);
-  yaw = (yaw * 180.0) / M_PI;
-  ///////////////////////////////////////////////////////////
+    goal_.coordinates.at(3) = yaw_deg;
 
-  double r = sqrt(pow(goal_base.point.x, 2) + pow(goal_base.point.y, 2));
-  double yaw_to_pose = asin(goal_base.point.y / r);
-  yaw_to_pose = (yaw_to_pose * 180.0) / M_PI;
-  if (goal_base.point.x < 0.0 && goal_base.point.y <= 0.0)
-  {
-    yaw_to_pose = -180 - yaw_to_pose;
-  }
-  else if (goal_base.point.x < 0.0 && goal_base.point.y > 0.0)
-  {
-    yaw_to_pose = 180 - yaw_to_pose;
-  }
+    goal_.matrix[0][0] = goal_msg->pose.covariance[0]; //x    variance
+    goal_.matrix[0][1] = goal_msg->pose.covariance[1]; //xy   covariance
+    goal_.matrix[0][2] = goal_msg->pose.covariance[2]; //xz   covariance
+    goal_.matrix[0][3] = goal_msg->pose.covariance[5]; //xyaw covariance
 
-  goal_.coordinates.at(0) = goal_base.point.x;
-  goal_.coordinates.at(1) = goal_base.point.y;
-  goal_.coordinates.at(2) = goal_base.point.z;
-  goal_.coordinates.at(3) = yaw_to_pose;
-  goal_.matrix[0][0] = goal_msg->pose.covariance[0];
-  goal_.matrix[1][1] = goal_msg->pose.covariance[7];
-  goal_.matrix[2][2] = goal_msg->pose.covariance[14];
-  goal_.matrix[3][3] = goal_msg->pose.covariance[35];
+    goal_.matrix[1][0] = goal_msg->pose.covariance[6]; //yx   covariance
+    goal_.matrix[1][1] = goal_msg->pose.covariance[7]; //y    variance
+    goal_.matrix[1][2] = goal_msg->pose.covariance[8]; //yz   covariance
+    goal_.matrix[1][3] = goal_msg->pose.covariance[11]; //yyaw covariance
+
+    goal_.matrix[2][0] = goal_msg->pose.covariance[12]; //zx   covariance
+    goal_.matrix[2][1] = goal_msg->pose.covariance[13]; //zy   covariance
+    goal_.matrix[2][2] = goal_msg->pose.covariance[14]; //z    variance
+    goal_.matrix[2][3] = goal_msg->pose.covariance[17]; //zyaw variance
+
+    goal_.matrix[3][0] = goal_msg->pose.covariance[30]; //yawx covariance
+    goal_.matrix[3][1] = goal_msg->pose.covariance[31]; //yawy covariance
+    goal_.matrix[3][3] = goal_msg->pose.covariance[32]; //yawz covariance
+    goal_.matrix[3][3] = goal_msg->pose.covariance[35]; //yaw  variance
+  }
+  else
+  {
+    /*
+    ///////////////////////////////////////////////////////////
+    ///// TRANSFORM TO BASE_LINK FRAME
+    geometry_msgs::PointStamped goal_tf;
+    geometry_msgs::PointStamped goal_base;
+    goal_tf.header.frame_id = frame_id_;
+    goal_tf.header.stamp = ros::Time(0); //ros::Time::now();
+    goal_tf.point.x = goal_msg->pose.pose.position.x;
+    goal_tf.point.y = goal_msg->pose.pose.position.y;
+    goal_tf.point.z = goal_msg->pose.pose.position.z;
+    try
+    {
+      listener_.transformPoint("base_link", goal_tf, goal_base);
+
+    }
+    catch (tf::TransformException& ex)
+    {
+      ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
+      return;
+    }
+
+    geometry_msgs::QuaternionStamped orient_tf;
+    geometry_msgs::QuaternionStamped orient_base;
+    orient_tf.header.frame_id = frame_id_;
+    orient_tf.header.stamp = ros::Time(0);
+    orient_tf.quaternion.x = goal_msg->pose.pose.orientation.x;
+    orient_tf.quaternion.y = goal_msg->pose.pose.orientation.y;
+    orient_tf.quaternion.z = goal_msg->pose.pose.orientation.z;
+    orient_tf.quaternion.w = goal_msg->pose.pose.orientation.w;
+    try
+    {
+      listener_.transformQuaternion("base_link", orient_tf, orient_base);
+    }
+    catch (tf::TransformException& ex)
+    {
+      ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
+      return;
+    }
+    double roll, pitch, yaw;
+    tf::Quaternion q_pose(orient_base.quaternion.x, orient_base.quaternion.y, orient_base.quaternion.z,
+                          orient_base.quaternion.w);
+    tf::Matrix3x3 m_pose(q_pose);
+    m_pose.getRPY(roll, pitch, yaw);
+    yaw = (yaw * 180.0) / M_PI;
+    ///////////////////////////////////////////////////////////
+
+    double r = sqrt(pow(goal_base.point.x, 2) + pow(goal_base.point.y, 2));
+    double yaw_to_pose = asin(goal_base.point.y / r);
+    yaw_to_pose = (yaw_to_pose * 180.0) / M_PI;
+    if (goal_base.point.x < 0.0 && goal_base.point.y <= 0.0)
+    {
+      yaw_to_pose = -180 - yaw_to_pose;
+    }
+    else if (goal_base.point.x < 0.0 && goal_base.point.y > 0.0)
+    {
+      yaw_to_pose = 180 - yaw_to_pose;
+    }
+
+    goal_.coordinates.at(0) = goal_base.point.x;
+    goal_.coordinates.at(1) = goal_base.point.y;
+    goal_.coordinates.at(2) = goal_base.point.z;
+    goal_.coordinates.at(3) = yaw_to_pose;
+    goal_.matrix[0][0] = goal_msg->pose.covariance[0];
+    goal_.matrix[1][1] = goal_msg->pose.covariance[7];
+    goal_.matrix[2][2] = goal_msg->pose.covariance[14];
+    goal_.matrix[3][3] = goal_msg->pose.covariance[35];
+    */
+  }
 
   flag_goal_ = true;
 

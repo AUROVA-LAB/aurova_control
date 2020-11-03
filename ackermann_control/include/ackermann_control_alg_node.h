@@ -53,6 +53,8 @@ private:
   struct Pose goal_;
   struct Direction direction_;
 
+  bool control_in_map_frame_;
+
   bool flag_odom_;
   bool flag_goal_;
   bool flag_velodyne_;
@@ -62,7 +64,7 @@ private:
   std::string frame_id_;
 
   SteeringControl *control_;
-  tf::TransformListener listener_;
+  //tf::TransformListener listener_;
 
   sensor_msgs::PointCloud2 velodyne_ros_cloud_;
   pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl_cloud_ptr_;
