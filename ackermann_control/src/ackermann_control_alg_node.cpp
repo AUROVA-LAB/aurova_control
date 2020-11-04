@@ -42,6 +42,11 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   public_node_handle_.getParam("/ackermann_control/control_min_speed_meters_per_second",
                                ackermann_control_params_.min_speed_meters_per_second);
 
+  public_node_handle_.getParam("/ackermann_control/control_mahalanobis_distance_threshold_to_ignore_local_minima",
+                               ackermann_control_params_.mahalanobis_distance_threshold_to_ignore_local_minima);
+
+
+
   public_node_handle_.getParam("/ackermann_control/safety_lateral_margin",
                                collision_avoidance_params_.safety_lateral_margin);
   public_node_handle_.getParam("/ackermann_control/safety_above_margin",
@@ -88,6 +93,8 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   velodyne_subscriber_ = public_node_handle_.subscribe("/velodyne_points", 1, &AckermannControlAlgNode::cb_velodyne,
                                                        this);
 
+  pthread_mutex_init(&this->thread_mutex_, NULL);
+
   // [init subscribers]
 
   // [init services]
@@ -102,6 +109,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
 AckermannControlAlgNode::~AckermannControlAlgNode(void)
 {
   // [free dynamic memory]
+  pthread_mutex_destroy(&this->thread_mutex_);
 }
 
 void AckermannControlAlgNode::mainNodeThread(void)
@@ -109,29 +117,34 @@ void AckermannControlAlgNode::mainNodeThread(void)
 
   if (flag_odom_ && flag_goal_ && flag_velodyne_)
   {
-    velodyne_mutex_enter();
+    thread_mutex_enter();
     //std::cout << "Reset flags!" << std::endl;
     flag_odom_ = false;
     flag_goal_ = false;
     flag_velodyne_ = false;
 
-    // [fill msg structures]
-    float k_sp = (ackermann_control_params_.max_speed_meters_per_second
-        - ackermann_control_params_.min_speed_meters_per_second) / robot_params_.abs_max_steering_angle_deg;
+    // we remove the non-obstacle points
+    alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_ptr_, robot_params_, collision_avoidance_params_,
+                                       ackermann_prediction_params_, *velodyne_pcl_cloud_ptr_);
 
     //std::cout << "Getting best steering!" << std::endl;
     direction_ = control_->getBestSteering(this->pose_, this->goal_, velodyne_pcl_cloud_ptr_);
 
+    float k_sp = (ackermann_control_params_.max_speed_meters_per_second
+        - ackermann_control_params_.min_speed_meters_per_second) / robot_params_.abs_max_steering_angle_deg;
+
     double speed = 0.0;
-    switch (this->direction_.sense)
+    switch (direction_.sense)
     {
       case 0:
         speed = 0.0;
         break;
       case 1:
+        std::cout << "Going forward!" << std::endl;
         speed = ackermann_control_params_.max_speed_meters_per_second - fabs(direction_.angle) * k_sp;
         break;
       case -1:
+        std::cout << "Going backward!" << std::endl;
         speed = -1 * (ackermann_control_params_.max_speed_meters_per_second - fabs(this->direction_.angle) * k_sp);
         break;
     }
@@ -158,22 +171,14 @@ void AckermannControlAlgNode::mainNodeThread(void)
     //std::cout << "Publishing messages!!" << std::endl;
     ackermann_publisher_.publish(ackermann_state_.drive);
     twist_publisher_.publish(twist_state_);
+
+    pcl::PCLPointCloud2 aux;
+    toPCLPointCloud2(*velodyne_pcl_cloud_ptr_, aux);
+    pcl_conversions::fromPCL(aux, velodyne_ros_cloud_);
+
     filtered_velodyne_publisher_.publish(velodyne_ros_cloud_);
     velodyne_pcl_cloud_ptr_->clear(); // Cleaning up to prepare next iteration
-    velodyne_mutex_exit();
-    flag_velodyne_ = false;
-  }
-  else
-  {
-    if (flag_velodyne_)
-    {
-      //std::cout << "Publishing only velodyne message!!" << std::endl;
-      velodyne_mutex_enter();
-      filtered_velodyne_publisher_.publish(velodyne_ros_cloud_);
-      velodyne_pcl_cloud_ptr_->clear(); // Cleaning up to prepare next iteration
-      velodyne_mutex_exit();
-      flag_velodyne_ = false;
-    }
+    thread_mutex_exit();
   }
 }
 
@@ -181,7 +186,8 @@ void AckermannControlAlgNode::mainNodeThread(void)
 void AckermannControlAlgNode::cb_getPoseMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& pose_msg)
 {
   //std::cout << "AckermannControlAlgNode::cb_getPoseMsg --> pose_msg received!" << std::endl;
-  alg_.lock();
+  //alg_.lock();
+  thread_mutex_enter();
 
   if (control_in_map_frame_)
   {
@@ -233,13 +239,15 @@ void AckermannControlAlgNode::cb_getPoseMsg(const geometry_msgs::PoseWithCovaria
   }
 
   flag_odom_ = true;
-
-  alg_.unlock();
+  thread_mutex_exit();
+  //alg_.unlock();
 }
 void AckermannControlAlgNode::cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& odom_msg)
 {
   //std::cout << "AckermannControlAlgNode::cb_getOdomMsg --> odom_msg received!" << std::endl;
-  alg_.lock();
+  //alg_.lock();
+
+  thread_mutex_enter();
 
   if (control_in_map_frame_)
   {
@@ -291,13 +299,16 @@ void AckermannControlAlgNode::cb_getOdomMsg(const nav_msgs::Odometry::ConstPtr& 
   }
 
   flag_odom_ = true;
+  thread_mutex_exit();
 
-  alg_.unlock();
+  //alg_.unlock();
 }
 void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& goal_msg)
 {
   //std::cout << "AckermannControlAlgNode::cb_getGoalMsg --> goal_msg received!" << std::endl;
-  alg_.lock();
+  //alg_.lock();
+
+  thread_mutex_enter();
 
   if (control_in_map_frame_)
   {
@@ -407,12 +418,17 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
 
   flag_goal_ = true;
 
-  alg_.unlock();
+  thread_mutex_exit();
+  //alg_.unlock();
 }
 
 void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstPtr& velodyne_msg)
 {
+  //alg_.lock();
   //std::cout << "AckermannControlAlgNode::cb_velodyne --> Velodyne msg received!" << std::endl;
+
+  thread_mutex_enter();
+
   assert(velodyne_msg != NULL && "Null pointer!!! in function cb_velodyne!");
 
   // We convert the input message to pcl pointcloud
@@ -420,25 +436,20 @@ void AckermannControlAlgNode::cb_velodyne(const sensor_msgs::PointCloud2::ConstP
   pcl_conversions::toPCL(*velodyne_msg, aux);
   pcl::fromPCLPointCloud2(aux, *velodyne_pcl_cloud_ptr_);
 
-  // Then we remove the non-obstacle points
-  alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_ptr_, robot_params_, collision_avoidance_params_,
-                                     ackermann_prediction_params_, *velodyne_pcl_cloud_ptr_);
-
-  // And pass to the output to visualize the filtering
-  toPCLPointCloud2(*velodyne_pcl_cloud_ptr_, aux);
-  pcl_conversions::fromPCL(aux, velodyne_ros_cloud_);
-
   flag_velodyne_ = true;
+
+  thread_mutex_exit();
+  //alg_.unlock();
 }
 
-void AckermannControlAlgNode::velodyne_mutex_enter(void)
+void AckermannControlAlgNode::thread_mutex_enter(void)
 {
-  pthread_mutex_lock(&this->velodyne_mutex_);
+  pthread_mutex_lock(&this->thread_mutex_);
 }
 
-void AckermannControlAlgNode::velodyne_mutex_exit(void)
+void AckermannControlAlgNode::thread_mutex_exit(void)
 {
-  pthread_mutex_unlock(&this->velodyne_mutex_);
+  pthread_mutex_unlock(&this->thread_mutex_);
 }
 
 /*  [service callbacks] */
@@ -449,9 +460,11 @@ void AckermannControlAlgNode::velodyne_mutex_exit(void)
 
 void AckermannControlAlgNode::node_config_update(Config &config, uint32_t level)
 {
-  alg_.lock();
+  //alg_.lock();
+  thread_mutex_enter();
   config_ = config;
-  alg_.unlock();
+  thread_mutex_exit();
+  //alg_.unlock();
 }
 
 void AckermannControlAlgNode::addNodeDiagnostics(void)

@@ -69,9 +69,9 @@ private:
   sensor_msgs::PointCloud2 velodyne_ros_cloud_;
   pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl_cloud_ptr_;
 
-  pthread_mutex_t velodyne_mutex_;
-  void velodyne_mutex_enter(void);
-  void velodyne_mutex_exit(void);
+  pthread_mutex_t thread_mutex_;
+  void thread_mutex_enter(void);
+  void thread_mutex_exit(void);
 
   // [publisher attributes]
   ros::Publisher ackermann_publisher_;
