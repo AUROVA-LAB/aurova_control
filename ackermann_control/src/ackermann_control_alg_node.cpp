@@ -86,8 +86,8 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
       > ("/velodyne_close_obstacle_points", 1);
 
   // [init subscribers]
-  odom_subscriber_ = public_node_handle_.subscribe("/odom", 1, &AckermannControlAlgNode::cb_getOdomMsg, this);
-  pose_subscriber_ = public_node_handle_.subscribe("/pose_sim", 1, &AckermannControlAlgNode::cb_getPoseMsg, this);
+  //odom_subscriber_ = public_node_handle_.subscribe("/odom", 1, &AckermannControlAlgNode::cb_getOdomMsg, this);
+  pose_subscriber_ = public_node_handle_.subscribe("/pose_plot", 1, &AckermannControlAlgNode::cb_getPoseMsg, this);
   goal_subscriber_ = public_node_handle_.subscribe("/semilocal_goal", 1, &AckermannControlAlgNode::cb_getGoalMsg, this);
 
   velodyne_subscriber_ = public_node_handle_.subscribe("/velodyne_points", 1, &AckermannControlAlgNode::cb_velodyne,
