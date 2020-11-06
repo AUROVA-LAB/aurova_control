@@ -44,8 +44,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
                                ackermann_control_params_.max_speed_meters_per_second);
   public_node_handle_.getParam("/ackermann_control/control_min_speed_meters_per_second",
                                ackermann_control_params_.min_speed_meters_per_second);
-  public_node_handle_.getParam("/ackermann_control/control_max_delta_speed",
-                               ackermann_control_params_.max_delta_speed);
+  public_node_handle_.getParam("/ackermann_control/control_max_delta_speed", ackermann_control_params_.max_delta_speed);
   public_node_handle_.getParam("/ackermann_control/control_mahalanobis_distance_threshold_to_ignore_local_minima",
                                ackermann_control_params_.mahalanobis_distance_threshold_to_ignore_local_minima);
 
@@ -155,20 +154,28 @@ void AckermannControlAlgNode::mainNodeThread(void)
         break;
     }
 
-    // Limiting accelerations
-    if(previous_sense_ != 0 && previous_sense_ != action_.sense)
+    if (action_.sense != 0) // zero means emergency stop
     {
-      speed = 0.0;
+      // Limiting accelerations
+      if (previous_sense_ != 0 && previous_sense_ != action_.sense) //if there is a sense change we first stop
+      {
+        speed = 0.0;
+      }
+      else
+      {
+        if (fabs(speed - previous_speed_) > ackermann_control_params_.max_delta_speed) // if the sense is mantained we limit the speed change
+        {
+          if (speed - previous_speed_ > 0)
+            speed = previous_speed_ + ackermann_control_params_.max_delta_speed;
+          else
+            speed = previous_speed_ - ackermann_control_params_.max_delta_speed;
+        }
+      }
     }
     else
     {
-      if(fabs(speed - previous_speed_) > ackermann_control_params_.max_delta_speed)
-      {
-        if(speed - previous_speed_ > 0)
-          speed = previous_speed_ + ackermann_control_params_.max_delta_speed;
-        else
-          speed = previous_speed_ - ackermann_control_params_.max_delta_speed;
-      }
+      speed = 0.0; // Emergency stop
+      std::cout << "EMERGENCY STOP!!" << std::endl;
     }
 
     ROS_INFO("control -> steering: %f, speed: %f", this->action_.angle, speed);
