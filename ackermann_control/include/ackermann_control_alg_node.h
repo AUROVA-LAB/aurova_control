@@ -51,13 +51,16 @@ private:
 
   struct Pose pose_;
   struct Pose goal_;
-  struct Direction direction_;
+  struct SteeringAction action_;
 
   bool control_in_map_frame_;
 
   bool flag_odom_;
   bool flag_goal_;
   bool flag_velodyne_;
+
+  float previous_speed_;
+  int previous_sense_;
 
   ackermann_msgs::AckermannDriveStamped ackermann_state_;
   geometry_msgs::Twist twist_state_;

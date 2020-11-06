@@ -13,6 +13,9 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   flag_goal_ = false;
   flag_velodyne_ = false;
 
+  previous_speed_ = 0.0;
+  previous_sense_ = 0;
+
   public_node_handle_.getParam("/ackermann_control/frame_id", frame_id_);
   public_node_handle_.getParam("/ackermann_control/control_in_map_frame", control_in_map_frame_);
 
@@ -41,11 +44,10 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
                                ackermann_control_params_.max_speed_meters_per_second);
   public_node_handle_.getParam("/ackermann_control/control_min_speed_meters_per_second",
                                ackermann_control_params_.min_speed_meters_per_second);
-
+  public_node_handle_.getParam("/ackermann_control/control_max_delta_speed",
+                               ackermann_control_params_.max_delta_speed);
   public_node_handle_.getParam("/ackermann_control/control_mahalanobis_distance_threshold_to_ignore_local_minima",
                                ackermann_control_params_.mahalanobis_distance_threshold_to_ignore_local_minima);
-
-
 
   public_node_handle_.getParam("/ackermann_control/safety_lateral_margin",
                                collision_avoidance_params_.safety_lateral_margin);
@@ -56,9 +58,13 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   public_node_handle_.getParam("/ackermann_control/safety_min_obstacle_height",
                                collision_avoidance_params_.min_obstacle_height);
 
+  public_node_handle_.getParam("/ackermann_control/safety_time_to_reach_min_allowed_distance",
+                               collision_avoidance_params_.time_to_reach_min_allowed_distance);
+
   public_node_handle_.getParam("/ackermann_control/prediction_temporal_horizon",
                                ackermann_prediction_params_.temporal_horizon);
   public_node_handle_.getParam("/ackermann_control/prediction_delta_time", ackermann_prediction_params_.delta_time);
+
   public_node_handle_.getParam("/ackermann_control/prediction_delta_steering_deg",
                                ackermann_prediction_params_.delta_steering);
 
@@ -128,40 +134,58 @@ void AckermannControlAlgNode::mainNodeThread(void)
                                        ackermann_prediction_params_, *velodyne_pcl_cloud_ptr_);
 
     //std::cout << "Getting best steering!" << std::endl;
-    direction_ = control_->getBestSteering(this->pose_, this->goal_, velodyne_pcl_cloud_ptr_);
+    action_ = control_->getBestSteeringAction(this->pose_, this->goal_, velodyne_pcl_cloud_ptr_);
 
     float k_sp = (ackermann_control_params_.max_speed_meters_per_second
         - ackermann_control_params_.min_speed_meters_per_second) / robot_params_.abs_max_steering_angle_deg;
 
     double speed = 0.0;
-    switch (direction_.sense)
+    switch (action_.sense)
     {
       case 0:
         speed = 0.0;
         break;
       case 1:
         std::cout << "Going forward!" << std::endl;
-        speed = ackermann_control_params_.max_speed_meters_per_second - fabs(direction_.angle) * k_sp;
+        speed = action_.max_recommended_speed_meters_per_second - fabs(action_.angle) * k_sp;
         break;
       case -1:
         std::cout << "Going backward!" << std::endl;
-        speed = -1 * (ackermann_control_params_.max_speed_meters_per_second - fabs(this->direction_.angle) * k_sp);
+        speed = -1 * (action_.max_recommended_speed_meters_per_second - fabs(this->action_.angle) * k_sp);
         break;
     }
 
+    // Limiting accelerations
+    if(previous_sense_ != 0 && previous_sense_ != action_.sense)
+    {
+      speed = 0.0;
+    }
+    else
+    {
+      if(fabs(speed - previous_speed_) > ackermann_control_params_.max_delta_speed)
+      {
+        if(speed - previous_speed_ > 0)
+          speed = previous_speed_ + ackermann_control_params_.max_delta_speed;
+        else
+          speed = previous_speed_ - ackermann_control_params_.max_delta_speed;
+      }
+    }
+
+    ROS_INFO("control -> steering: %f, speed: %f", this->action_.angle, speed);
+
     //std::cout << "Preparing outputs!" << std::endl;
-    ackermann_state_.drive.steering_angle = direction_.angle * M_PI / 180.0;
+    ackermann_state_.drive.steering_angle = action_.angle * M_PI / 180.0;
     ackermann_state_.drive.speed = speed;
 
     twist_state_.linear.x = speed;
-    twist_state_.angular.z = (speed / robot_params_.wheelbase) * sin(direction_.angle * M_PI / 180.0);
+    twist_state_.angular.z = (speed / robot_params_.wheelbase) * sin(action_.angle * M_PI / 180.0);
 
     //////////////////////////////////////////////////////
     //// DEBUG
     /*
      ROS_INFO("goal -> x: %f, y: %f, z: %f, yaw: %f", this->goal_.coordinates[0], this->goal_.coordinates[1],
      this->goal_.coordinates[2], this->goal_.coordinates[3]);
-     ROS_INFO("control -> steering: %f, speed: %f", this->direction_.angle, speed);
+     ROS_INFO("control -> steering: %f, speed: %f", this->action_.angle, speed);
      ROS_INFO("control -> angular: %f, linear: %f", this->twist_state_.angular.z, speed);
      */
     //////////////////////////////////////////////////////
@@ -172,6 +196,8 @@ void AckermannControlAlgNode::mainNodeThread(void)
     ackermann_publisher_.publish(ackermann_state_.drive);
     twist_publisher_.publish(twist_state_);
 
+    previous_speed_ = speed;
+
     pcl::PCLPointCloud2 aux;
     toPCLPointCloud2(*velodyne_pcl_cloud_ptr_, aux);
     pcl_conversions::fromPCL(aux, velodyne_ros_cloud_);
@@ -179,6 +205,26 @@ void AckermannControlAlgNode::mainNodeThread(void)
     filtered_velodyne_publisher_.publish(velodyne_ros_cloud_);
     velodyne_pcl_cloud_ptr_->clear(); // Cleaning up to prepare next iteration
     thread_mutex_exit();
+  }
+  else
+  {
+    if (flag_velodyne_)
+    {
+      thread_mutex_enter();
+      flag_velodyne_ = false;
+
+      // we remove the non-obstacle points
+      alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_ptr_, robot_params_, collision_avoidance_params_,
+                                         ackermann_prediction_params_, *velodyne_pcl_cloud_ptr_);
+
+      pcl::PCLPointCloud2 aux;
+      toPCLPointCloud2(*velodyne_pcl_cloud_ptr_, aux);
+      pcl_conversions::fromPCL(aux, velodyne_ros_cloud_);
+
+      filtered_velodyne_publisher_.publish(velodyne_ros_cloud_);
+      velodyne_pcl_cloud_ptr_->clear(); // Cleaning up to prepare next iteration
+      thread_mutex_exit();
+    }
   }
 }
 
@@ -348,72 +394,72 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   else
   {
     /*
-    ///////////////////////////////////////////////////////////
-    ///// TRANSFORM TO BASE_LINK FRAME
-    geometry_msgs::PointStamped goal_tf;
-    geometry_msgs::PointStamped goal_base;
-    goal_tf.header.frame_id = frame_id_;
-    goal_tf.header.stamp = ros::Time(0); //ros::Time::now();
-    goal_tf.point.x = goal_msg->pose.pose.position.x;
-    goal_tf.point.y = goal_msg->pose.pose.position.y;
-    goal_tf.point.z = goal_msg->pose.pose.position.z;
-    try
-    {
-      listener_.transformPoint("base_link", goal_tf, goal_base);
+     ///////////////////////////////////////////////////////////
+     ///// TRANSFORM TO BASE_LINK FRAME
+     geometry_msgs::PointStamped goal_tf;
+     geometry_msgs::PointStamped goal_base;
+     goal_tf.header.frame_id = frame_id_;
+     goal_tf.header.stamp = ros::Time(0); //ros::Time::now();
+     goal_tf.point.x = goal_msg->pose.pose.position.x;
+     goal_tf.point.y = goal_msg->pose.pose.position.y;
+     goal_tf.point.z = goal_msg->pose.pose.position.z;
+     try
+     {
+     listener_.transformPoint("base_link", goal_tf, goal_base);
 
-    }
-    catch (tf::TransformException& ex)
-    {
-      ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
-      return;
-    }
+     }
+     catch (tf::TransformException& ex)
+     {
+     ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
+     return;
+     }
 
-    geometry_msgs::QuaternionStamped orient_tf;
-    geometry_msgs::QuaternionStamped orient_base;
-    orient_tf.header.frame_id = frame_id_;
-    orient_tf.header.stamp = ros::Time(0);
-    orient_tf.quaternion.x = goal_msg->pose.pose.orientation.x;
-    orient_tf.quaternion.y = goal_msg->pose.pose.orientation.y;
-    orient_tf.quaternion.z = goal_msg->pose.pose.orientation.z;
-    orient_tf.quaternion.w = goal_msg->pose.pose.orientation.w;
-    try
-    {
-      listener_.transformQuaternion("base_link", orient_tf, orient_base);
-    }
-    catch (tf::TransformException& ex)
-    {
-      ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
-      return;
-    }
-    double roll, pitch, yaw;
-    tf::Quaternion q_pose(orient_base.quaternion.x, orient_base.quaternion.y, orient_base.quaternion.z,
-                          orient_base.quaternion.w);
-    tf::Matrix3x3 m_pose(q_pose);
-    m_pose.getRPY(roll, pitch, yaw);
-    yaw = (yaw * 180.0) / M_PI;
-    ///////////////////////////////////////////////////////////
+     geometry_msgs::QuaternionStamped orient_tf;
+     geometry_msgs::QuaternionStamped orient_base;
+     orient_tf.header.frame_id = frame_id_;
+     orient_tf.header.stamp = ros::Time(0);
+     orient_tf.quaternion.x = goal_msg->pose.pose.orientation.x;
+     orient_tf.quaternion.y = goal_msg->pose.pose.orientation.y;
+     orient_tf.quaternion.z = goal_msg->pose.pose.orientation.z;
+     orient_tf.quaternion.w = goal_msg->pose.pose.orientation.w;
+     try
+     {
+     listener_.transformQuaternion("base_link", orient_tf, orient_base);
+     }
+     catch (tf::TransformException& ex)
+     {
+     ROS_WARN("[draw_frames] TF exception:\n%s", ex.what());
+     return;
+     }
+     double roll, pitch, yaw;
+     tf::Quaternion q_pose(orient_base.quaternion.x, orient_base.quaternion.y, orient_base.quaternion.z,
+     orient_base.quaternion.w);
+     tf::Matrix3x3 m_pose(q_pose);
+     m_pose.getRPY(roll, pitch, yaw);
+     yaw = (yaw * 180.0) / M_PI;
+     ///////////////////////////////////////////////////////////
 
-    double r = sqrt(pow(goal_base.point.x, 2) + pow(goal_base.point.y, 2));
-    double yaw_to_pose = asin(goal_base.point.y / r);
-    yaw_to_pose = (yaw_to_pose * 180.0) / M_PI;
-    if (goal_base.point.x < 0.0 && goal_base.point.y <= 0.0)
-    {
-      yaw_to_pose = -180 - yaw_to_pose;
-    }
-    else if (goal_base.point.x < 0.0 && goal_base.point.y > 0.0)
-    {
-      yaw_to_pose = 180 - yaw_to_pose;
-    }
+     double r = sqrt(pow(goal_base.point.x, 2) + pow(goal_base.point.y, 2));
+     double yaw_to_pose = asin(goal_base.point.y / r);
+     yaw_to_pose = (yaw_to_pose * 180.0) / M_PI;
+     if (goal_base.point.x < 0.0 && goal_base.point.y <= 0.0)
+     {
+     yaw_to_pose = -180 - yaw_to_pose;
+     }
+     else if (goal_base.point.x < 0.0 && goal_base.point.y > 0.0)
+     {
+     yaw_to_pose = 180 - yaw_to_pose;
+     }
 
-    goal_.coordinates.at(0) = goal_base.point.x;
-    goal_.coordinates.at(1) = goal_base.point.y;
-    goal_.coordinates.at(2) = goal_base.point.z;
-    goal_.coordinates.at(3) = yaw_to_pose;
-    goal_.matrix[0][0] = goal_msg->pose.covariance[0];
-    goal_.matrix[1][1] = goal_msg->pose.covariance[7];
-    goal_.matrix[2][2] = goal_msg->pose.covariance[14];
-    goal_.matrix[3][3] = goal_msg->pose.covariance[35];
-    */
+     goal_.coordinates.at(0) = goal_base.point.x;
+     goal_.coordinates.at(1) = goal_base.point.y;
+     goal_.coordinates.at(2) = goal_base.point.z;
+     goal_.coordinates.at(3) = yaw_to_pose;
+     goal_.matrix[0][0] = goal_msg->pose.covariance[0];
+     goal_.matrix[1][1] = goal_msg->pose.covariance[7];
+     goal_.matrix[2][2] = goal_msg->pose.covariance[14];
+     goal_.matrix[3][3] = goal_msg->pose.covariance[35];
+     */
   }
 
   flag_goal_ = true;
