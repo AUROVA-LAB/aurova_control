@@ -31,6 +31,7 @@
 // [publisher subscriber headers]
 
 // [service client headers]
+#include <ackermann_control/SetNavigationMode.h>
 
 // [action server client headers]
 
@@ -58,6 +59,8 @@ private:
   bool flag_odom_;
   bool flag_goal_;
   bool flag_velodyne_;
+  bool flag_stop_;
+  bool flag_final_goal_;
 
   float previous_speed_;
   int previous_sense_;
@@ -116,6 +119,12 @@ private:
   // [subscriber attributes]
 
   // [service attributes]
+    ros::ServiceServer set_navigation_mode_server_;
+    bool set_navigation_modeCallback(ackermann_control::SetNavigationMode::Request &req, ackermann_control::SetNavigationMode::Response &res);
+    pthread_mutex_t set_navigation_mode_mutex_;
+    void set_navigation_mode_mutex_enter(void);
+    void set_navigation_mode_mutex_exit(void);
+
 
   // [client attributes]
 

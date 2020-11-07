@@ -13,6 +13,9 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   flag_goal_ = false;
   flag_velodyne_ = false;
 
+  flag_stop_ = true;
+  flag_final_goal_ = false;
+
   previous_speed_ = 0.0;
   previous_sense_ = 0;
 
@@ -103,6 +106,9 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   // [init subscribers]
 
   // [init services]
+  this->set_navigation_mode_server_ = this->public_node_handle_.advertiseService("set_navigation_mode", &AckermannControlAlgNode::set_navigation_modeCallback, this);
+  pthread_mutex_init(&this->set_navigation_mode_mutex_,NULL);
+
 
   // [init clients]
 
@@ -114,6 +120,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
 AckermannControlAlgNode::~AckermannControlAlgNode(void)
 {
   // [free dynamic memory]
+  pthread_mutex_destroy(&this->set_navigation_mode_mutex_);
   pthread_mutex_destroy(&this->thread_mutex_);
 }
 
@@ -506,6 +513,59 @@ void AckermannControlAlgNode::thread_mutex_exit(void)
 }
 
 /*  [service callbacks] */
+bool AckermannControlAlgNode::set_navigation_modeCallback(ackermann_control::SetNavigationMode::Request &req, ackermann_control::SetNavigationMode::Response &res)
+{
+  ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: New Request Received!");
+
+  //use appropiate mutex to shared variables if necessary
+  //this->alg_.lock();
+  this->set_navigation_mode_mutex_enter();
+
+  //do operations with req and output on res
+  //res.data2 = req.data1 + my_var;
+
+  bool success = true;
+  switch(req.nav_mode)
+  {
+    case 0:
+      flag_stop_ = true;
+      ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: Stop requested, stopping robot!");
+      break;
+    case 1:
+      flag_final_goal_ = false;
+      flag_stop_ = false;
+      ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: Navigate to a partial goal requested, initiating control!");
+      break;
+    case 2:
+      flag_final_goal_ = true;
+      flag_stop_ = false;
+      ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: Navigate to a final goal requested, initiating control!");
+      break;
+    default:
+      flag_stop_ = true;
+      success = false;
+      ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: navigation mode requested does not exists, stopping robot!");
+      break;
+  }
+
+  res.success = success;
+  //unlock previously blocked shared variables
+  this->set_navigation_mode_mutex_exit();
+  //this->alg_.unlock();
+
+  return true;
+}
+
+void AckermannControlAlgNode::set_navigation_mode_mutex_enter(void)
+{
+  pthread_mutex_lock(&this->set_navigation_mode_mutex_);
+}
+
+void AckermannControlAlgNode::set_navigation_mode_mutex_exit(void)
+{
+  pthread_mutex_unlock(&this->set_navigation_mode_mutex_);
+}
+
 
 /*  [action callbacks] */
 

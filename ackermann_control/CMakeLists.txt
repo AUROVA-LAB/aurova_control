@@ -11,6 +11,7 @@ find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS iri_base_algorithm 
                                         tf
                                         sensor_msgs
+                                        message_generation
                                         pcl_ros
                                         pcl_conversions)
 
@@ -32,12 +33,11 @@ find_package(PCL REQUIRED)
 #   Message2.msg
 # )
 
-## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+ #Generate services in the 'srv' folder
+ add_service_files(
+   FILES
+   SetNavigationMode.srv
+ )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -46,11 +46,11 @@ find_package(PCL REQUIRED)
 #   Action2.action
 # )
 
-## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+# Generate added messages and services with any dependencies listed here
+ generate_messages(
+   DEPENDENCIES
+   std_msgs  # Or other packages containing msgs
+ )
 
 # ******************************************************************** 
 #                 Add the dynamic reconfigure file 
