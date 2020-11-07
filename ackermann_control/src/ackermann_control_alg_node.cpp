@@ -47,6 +47,8 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
                                ackermann_control_params_.max_speed_meters_per_second);
   public_node_handle_.getParam("/ackermann_control/control_min_speed_meters_per_second",
                                ackermann_control_params_.min_speed_meters_per_second);
+  public_node_handle_.getParam("/ackermann_control/control_max_speed_for_final_goal_approximation_meters_per_second",
+                               max_speed_for_final_goal_approximation_);
   public_node_handle_.getParam("/ackermann_control/control_max_delta_speed", ackermann_control_params_.max_delta_speed);
   public_node_handle_.getParam("/ackermann_control/control_mahalanobis_distance_threshold_to_ignore_local_minima",
                                ackermann_control_params_.mahalanobis_distance_threshold_to_ignore_local_minima);
@@ -106,9 +108,9 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   // [init subscribers]
 
   // [init services]
-  this->set_navigation_mode_server_ = this->public_node_handle_.advertiseService("set_navigation_mode", &AckermannControlAlgNode::set_navigation_modeCallback, this);
-  pthread_mutex_init(&this->set_navigation_mode_mutex_,NULL);
-
+  this->set_navigation_mode_server_ = this->public_node_handle_.advertiseService(
+      "set_navigation_mode", &AckermannControlAlgNode::set_navigation_modeCallback, this);
+  pthread_mutex_init(&this->set_navigation_mode_mutex_, NULL);
 
   // [init clients]
 
@@ -183,6 +185,31 @@ void AckermannControlAlgNode::mainNodeThread(void)
     {
       speed = 0.0; // Emergency stop
       std::cout << "EMERGENCY STOP!!" << std::endl;
+    }
+
+    if (flag_final_goal_)
+    {
+      float diff_x = goal_.coordinates[0] - pose_.coordinates[0];
+      float diff_y = goal_.coordinates[1] - pose_.coordinates[1];
+      float distance = sqrt(pow(diff_x, 2) + pow(diff_y, 2));
+
+      const float APPROXIMATION_ZONE_RADIUS = 3.0;
+      float k_approx = distance / APPROXIMATION_ZONE_RADIUS;
+      if(k_approx > 1.0)
+        k_approx = 1.0;
+
+      speed *= k_approx;
+
+      if( speed > 0.0 && speed < 0.2)
+        speed = 0.2;
+
+      if( speed < 0.0 && speed > -0.2)
+        speed = -0.2;
+    }
+
+    if (flag_stop_)
+    {
+      speed = 0.0;
     }
 
     ROS_INFO("control -> steering: %f, speed: %f", this->action_.angle, speed);
@@ -513,7 +540,8 @@ void AckermannControlAlgNode::thread_mutex_exit(void)
 }
 
 /*  [service callbacks] */
-bool AckermannControlAlgNode::set_navigation_modeCallback(ackermann_control::SetNavigationMode::Request &req, ackermann_control::SetNavigationMode::Response &res)
+bool AckermannControlAlgNode::set_navigation_modeCallback(ackermann_control::SetNavigationMode::Request &req,
+                                                          ackermann_control::SetNavigationMode::Response &res)
 {
   ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: New Request Received!");
 
@@ -525,7 +553,7 @@ bool AckermannControlAlgNode::set_navigation_modeCallback(ackermann_control::Set
   //res.data2 = req.data1 + my_var;
 
   bool success = true;
-  switch(req.nav_mode)
+  switch (req.nav_mode)
   {
     case 0:
       flag_stop_ = true;
@@ -534,20 +562,23 @@ bool AckermannControlAlgNode::set_navigation_modeCallback(ackermann_control::Set
     case 1:
       flag_final_goal_ = false;
       flag_stop_ = false;
-      ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: Navigate to a partial goal requested, initiating control!");
+      ROS_INFO(
+          "AckermannControlAlgNode::set_navigation_modeCallback: Navigate to a partial goal requested, initiating control!");
       break;
     case 2:
       flag_final_goal_ = true;
       flag_stop_ = false;
-      ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: Navigate to a final goal requested, initiating control!");
+      ROS_INFO(
+          "AckermannControlAlgNode::set_navigation_modeCallback: Navigate to a final goal requested, initiating control!");
       break;
     default:
       flag_stop_ = true;
       success = false;
-      ROS_INFO("AckermannControlAlgNode::set_navigation_modeCallback: navigation mode requested does not exists, stopping robot!");
+      ROS_INFO(
+          "AckermannControlAlgNode::set_navigation_modeCallback: navigation mode requested does not exists, stopping robot!");
       break;
   }
-
+  //std::getchar();
   res.success = success;
   //unlock previously blocked shared variables
   this->set_navigation_mode_mutex_exit();
@@ -565,7 +596,6 @@ void AckermannControlAlgNode::set_navigation_mode_mutex_exit(void)
 {
   pthread_mutex_unlock(&this->set_navigation_mode_mutex_);
 }
-
 
 /*  [action callbacks] */
 

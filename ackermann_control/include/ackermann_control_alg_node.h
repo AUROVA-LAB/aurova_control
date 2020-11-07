@@ -56,6 +56,8 @@ private:
 
   bool control_in_map_frame_;
 
+  float max_speed_for_final_goal_approximation_;
+
   bool flag_odom_;
   bool flag_goal_;
   bool flag_velodyne_;
