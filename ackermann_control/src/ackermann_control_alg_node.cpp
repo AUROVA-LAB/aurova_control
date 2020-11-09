@@ -42,13 +42,15 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
 
   public_node_handle_.getParam("/ackermann_control/robot_max_speed_meters_per_second",
                                robot_params_.max_speed_meters_per_second);
+  public_node_handle_.getParam("/ackermann_control/robot_min_speed_meters_per_second",
+                               robot_params_.min_speed_meters_per_second);
 
   public_node_handle_.getParam("/ackermann_control/control_max_speed_meters_per_second",
                                ackermann_control_params_.max_speed_meters_per_second);
   public_node_handle_.getParam("/ackermann_control/control_min_speed_meters_per_second",
                                ackermann_control_params_.min_speed_meters_per_second);
-  public_node_handle_.getParam("/ackermann_control/control_max_speed_for_final_goal_approximation_meters_per_second",
-                               max_speed_for_final_goal_approximation_);
+  public_node_handle_.getParam("/ackermann_control/control_final_goal_approximation_radius",
+                               ackermann_control_params_.final_goal_approximation_radius);
   public_node_handle_.getParam("/ackermann_control/control_max_delta_speed", ackermann_control_params_.max_delta_speed);
   public_node_handle_.getParam("/ackermann_control/control_mahalanobis_distance_threshold_to_ignore_local_minima",
                                ackermann_control_params_.mahalanobis_distance_threshold_to_ignore_local_minima);
@@ -147,7 +149,14 @@ void AckermannControlAlgNode::mainNodeThread(void)
     float k_sp = (ackermann_control_params_.max_speed_meters_per_second
         - ackermann_control_params_.min_speed_meters_per_second) / robot_params_.abs_max_steering_angle_deg;
 
+    float max_speed_due_to_steering = ackermann_control_params_.max_speed_meters_per_second - fabs(action_.angle) * k_sp;
+
     double speed = 0.0;
+    if(max_speed_due_to_steering < action_.max_recommended_speed_meters_per_second)
+      speed = max_speed_due_to_steering;
+    else
+      speed = action_.max_recommended_speed_meters_per_second;
+
     switch (action_.sense)
     {
       case 0:
@@ -155,19 +164,21 @@ void AckermannControlAlgNode::mainNodeThread(void)
         break;
       case 1:
         std::cout << "Going forward!" << std::endl;
-        speed = action_.max_recommended_speed_meters_per_second - fabs(action_.angle) * k_sp;
+        // nothing to do, speed is already positive!
         break;
       case -1:
         std::cout << "Going backward!" << std::endl;
-        speed = -1 * (action_.max_recommended_speed_meters_per_second - fabs(this->action_.angle) * k_sp);
+        speed = -1 * speed;
         break;
     }
+
 
     if (action_.sense != 0) // zero means emergency stop
     {
       // Limiting accelerations
       if (previous_sense_ != 0 && previous_sense_ != action_.sense) //if there is a sense change we first stop
       {
+        std::cout << "Sense change required! --> stopping the robot before to limit acceleration!" << std::endl;
         speed = 0.0;
       }
       else
@@ -193,18 +204,17 @@ void AckermannControlAlgNode::mainNodeThread(void)
       float diff_y = goal_.coordinates[1] - pose_.coordinates[1];
       float distance = sqrt(pow(diff_x, 2) + pow(diff_y, 2));
 
-      const float APPROXIMATION_ZONE_RADIUS = 3.0;
-      float k_approx = distance / APPROXIMATION_ZONE_RADIUS;
-      if(k_approx > 1.0)
+      float k_approx = distance / ackermann_control_params_.final_goal_approximation_radius;
+      if (k_approx > 1.0)
         k_approx = 1.0;
 
       speed *= k_approx;
 
-      if( speed > 0.0 && speed < 0.2)
-        speed = 0.2;
+      if (speed > 0.0 && speed < robot_params_.min_speed_meters_per_second)
+        speed = robot_params_.min_speed_meters_per_second;
 
-      if( speed < 0.0 && speed > -0.2)
-        speed = -0.2;
+      if (speed < 0.0 && speed > -1.0 * robot_params_.min_speed_meters_per_second)
+        speed = -1.0 * robot_params_.min_speed_meters_per_second;
     }
 
     if (flag_stop_)
@@ -238,6 +248,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
     twist_publisher_.publish(twist_state_);
 
     previous_speed_ = speed;
+    previous_sense_ = action_.sense;
 
     pcl::PCLPointCloud2 aux;
     toPCLPointCloud2(*velodyne_pcl_cloud_ptr_, aux);
