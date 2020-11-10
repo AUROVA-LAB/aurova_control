@@ -27,21 +27,22 @@ void AckermannControlAlgorithm::naiveNonObstaclePointsRemover(
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr aux(new pcl::PointCloud<pcl::PointXYZI>);
 
-  // We use the worst case, if the vehicle were
-  // omnidirectional it can advance this much
-  // either in x or y coordinates
-  float abs_max_coordinate = robot_params.max_speed_meters_per_second * ackermann_prediction_params.temporal_horizon;
+  float minimum_turning_radius = fabs(robot_params.wheelbase / tan(robot_params.abs_max_steering_angle_deg * M_PI / 180.0)); // fabs not required but anyway
+
+  float abs_max_x_coordinate = minimum_turning_radius + (robot_params.width / 2.0) + collision_avoidance_params.safety_lateral_margin;
+
+  float abs_max_y_coordinate = minimum_turning_radius;
 
   // Create the filtering object
   pcl::PassThrough < pcl::PointXYZI > pass;
   pass.setInputCloud(input);
   pass.setFilterFieldName("x");
-  pass.setFilterLimits(-1 * abs_max_coordinate, abs_max_coordinate);
+  pass.setFilterLimits(-1.0 * abs_max_x_coordinate, abs_max_x_coordinate);
   pass.filter(*aux);
 
   pass.setInputCloud(aux);
   pass.setFilterFieldName("y");
-  pass.setFilterLimits(-1 * abs_max_coordinate, abs_max_coordinate);
+  pass.setFilterLimits(-1.0 * abs_max_y_coordinate, abs_max_y_coordinate);
   pass.filter(*aux);
 
   float min_z_coordinate_for_an_obstacle = robot_params.ground_z_coordinate_in_sensor_frame_origin
