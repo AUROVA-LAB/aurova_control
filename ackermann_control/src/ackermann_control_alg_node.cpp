@@ -171,7 +171,9 @@ void AckermannControlAlgNode::mainNodeThread(void)
       if (flag_final_goal_)
         action_.speed = alg_.limitSpeedToReachFinalGoal(action_.speed, goal_, pose_, ackermann_control_params_, robot_params_);
 
-      action_.speed = alg_.limitAcceleration(action_.speed, action_.sense, ackermann_control_params_.max_delta_speed);
+      float speed_with_sign = alg_.limitAcceleration(action_.speed, action_.sense, ackermann_control_params_.max_delta_speed);
+      action_.speed = speed_with_sign; // We have combined the action_.speed and action_.sense in a signed speed (negative = backwards)
+
       std::cout << "Speed after acceleration limit = " << action_.speed << std::endl;
     }
 

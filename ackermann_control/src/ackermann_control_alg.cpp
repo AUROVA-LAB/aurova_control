@@ -74,10 +74,12 @@ float AckermannControlAlgorithm::getMaxSpeedAtSteeringAngleInDeg(const float ste
   return (max_speed_due_to_steering);
 }
 
-float AckermannControlAlgorithm::limitSpeedToReachFinalGoal(const float speed, const Pose goal, const Pose pose,
+float AckermannControlAlgorithm::limitSpeedToReachFinalGoal(const float current_speed, const Pose goal, const Pose pose,
                                                             const AckermannControlParams ackermann_control_params,
                                                             const RobotParams robot_params)
 {
+  std::cout << "Final goal speed reduction linear with distance to the goal!" << std::endl;
+
   float diff_x = goal.coordinates[0] - pose.coordinates[0];
   float diff_y = goal.coordinates[1] - pose.coordinates[1];
   float distance = sqrt(pow(diff_x, 2) + pow(diff_y, 2));
@@ -86,15 +88,17 @@ float AckermannControlAlgorithm::limitSpeedToReachFinalGoal(const float speed, c
   if (k_approx > 1.0)
     k_approx = 1.0;
 
-  float limited_speed = speed * k_approx;
+  float limited_unsigned_speed = robot_params.min_speed_meters_per_second
+      + (robot_params.max_speed_meters_per_second - robot_params.min_speed_meters_per_second) * k_approx;
 
-  if (limited_speed > 0.0 && limited_speed < robot_params.min_speed_meters_per_second)
-    limited_speed = robot_params.min_speed_meters_per_second;
+  float selected_speed = limited_unsigned_speed;
+  if(current_speed < selected_speed)
+    selected_speed = current_speed;
 
-  if (limited_speed < 0.0 && limited_speed > -1.0 * robot_params.min_speed_meters_per_second)
-    limited_speed = -1.0 * robot_params.min_speed_meters_per_second;
+  std::cout << "Speed before limitiation = " << current_speed << "    limited speed = " << limited_unsigned_speed
+      << "    selected speed = " << selected_speed << std::endl;
 
-  return (limited_speed);
+  return (selected_speed);
 }
 
 float AckermannControlAlgorithm::limitAcceleration(const float speed, const int sense, const float max_delta_speed)
