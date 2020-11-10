@@ -74,6 +74,29 @@ float AckermannControlAlgorithm::getMaxSpeedAtSteeringAngleInDeg(const float ste
   return (max_speed_due_to_steering);
 }
 
+float AckermannControlAlgorithm::limitSpeedToReachFinalGoal(const float speed, const Pose goal, const Pose pose,
+                                                            const AckermannControlParams ackermann_control_params,
+                                                            const RobotParams robot_params)
+{
+  float diff_x = goal.coordinates[0] - pose.coordinates[0];
+  float diff_y = goal.coordinates[1] - pose.coordinates[1];
+  float distance = sqrt(pow(diff_x, 2) + pow(diff_y, 2));
+
+  float k_approx = distance / ackermann_control_params.final_goal_approximation_radius;
+  if (k_approx > 1.0)
+    k_approx = 1.0;
+
+  float limited_speed = speed * k_approx;
+
+  if (limited_speed > 0.0 && limited_speed < robot_params.min_speed_meters_per_second)
+    limited_speed = robot_params.min_speed_meters_per_second;
+
+  if (limited_speed < 0.0 && limited_speed > -1.0 * robot_params.min_speed_meters_per_second)
+    limited_speed = -1.0 * robot_params.min_speed_meters_per_second;
+
+  return (limited_speed);
+}
+
 float AckermannControlAlgorithm::limitAcceleration(const float speed, const int sense, const float max_delta_speed)
 {
   std::cout << "Checking if litiming speed is needed!" << std::endl;
@@ -121,5 +144,5 @@ float AckermannControlAlgorithm::limitAcceleration(const float speed, const int 
 
   std::cout << "storing speed_acceleration_limited as previous_speed_ = " << previous_speed_ << std::endl;
 
-  return(speed_acceleration_limited);
+  return (speed_acceleration_limited);
 }

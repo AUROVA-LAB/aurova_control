@@ -165,6 +165,9 @@ public:
                                         const AckermannControlParams ackermann_control_params,
                                         const RobotParams robot_params);
 
+  float limitSpeedToReachFinalGoal(const float speed, const Pose goal, const Pose pose, const AckermannControlParams ackermann_control_params,
+                                   const RobotParams robot_params);
+
   float limitAcceleration(const float speed, const int sense, const float max_delta_speed);
 };
 

@@ -54,8 +54,6 @@ private:
   struct Pose goal_;
   struct SteeringAction action_;
 
-  bool control_in_map_frame_;
-
   float max_speed_for_final_goal_approximation_;
 
   bool flag_odom_;
@@ -63,9 +61,6 @@ private:
   bool flag_velodyne_;
   bool flag_stop_;
   bool flag_final_goal_;
-
-  float previous_speed_;
-  int previous_sense_;
 
   ackermann_msgs::AckermannDriveStamped ackermann_state_;
   geometry_msgs::Twist twist_state_;
@@ -128,7 +123,7 @@ private:
     void set_navigation_mode_mutex_exit(void);
 
   // some useful functions to improve code readability
-    void resetFlags(void);
+    void resetCallbacksFlags(void);
 
   // [client attributes]
 
