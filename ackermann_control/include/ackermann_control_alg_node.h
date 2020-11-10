@@ -127,6 +127,8 @@ private:
     void set_navigation_mode_mutex_enter(void);
     void set_navigation_mode_mutex_exit(void);
 
+  // some useful functions to improve code readability
+    void resetFlags(void);
 
   // [client attributes]
 

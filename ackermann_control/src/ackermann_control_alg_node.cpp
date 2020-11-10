@@ -128,75 +128,43 @@ AckermannControlAlgNode::~AckermannControlAlgNode(void)
   pthread_mutex_destroy(&this->thread_mutex_);
 }
 
+void AckermannControlAlgNode::resetFlags(void)
+{
+  //std::cout << "Reset flags!" << std::endl;
+  flag_odom_ = false;
+  flag_goal_ = false;
+  flag_velodyne_ = false;
+  return;
+}
+
+
 void AckermannControlAlgNode::mainNodeThread(void)
 {
 
   if (flag_odom_ && flag_goal_ && flag_velodyne_)
   {
     thread_mutex_enter();
-    //std::cout << "Reset flags!" << std::endl;
-    flag_odom_ = false;
-    flag_goal_ = false;
-    flag_velodyne_ = false;
+
+    resetFlags();
 
     // we remove the non-obstacle points
     alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_ptr_, robot_params_, collision_avoidance_params_,
                                        ackermann_prediction_params_, *velodyne_pcl_cloud_ptr_);
 
-    //std::cout << "Getting best steering!" << std::endl;
+    //std::cout << "Getting best steering action!" << std::endl;
     action_ = control_->getBestSteeringAction(this->pose_, this->goal_, velodyne_pcl_cloud_ptr_);
 
-    float k_sp = (ackermann_control_params_.max_speed_meters_per_second
-        - ackermann_control_params_.min_speed_meters_per_second) / robot_params_.abs_max_steering_angle_deg;
+    //std::cout << "Computing max speed given steering angle!" << std::endl;
+    float max_speed_due_to_steering = alg_.getMaxSpeedAtSteeringAngleInDeg(action_.angle, ackermann_control_params_,
+                                                                           robot_params_);
 
-    float max_speed_due_to_steering = ackermann_control_params_.max_speed_meters_per_second - fabs(action_.angle) * k_sp;
+    double speed = std::min(action_.max_recommended_speed_meters_per_second, max_speed_due_to_steering);
+    std::cout << "selected speed = " << speed << "    action_.max_recommended_speed_meters_per_second = "
+        << action_.max_recommended_speed_meters_per_second << "    max_speed_due_to_steering = "
+        << max_speed_due_to_steering << std::endl;
 
-    double speed = 0.0;
-    if(max_speed_due_to_steering < action_.max_recommended_speed_meters_per_second)
-      speed = max_speed_due_to_steering;
-    else
-      speed = action_.max_recommended_speed_meters_per_second;
-
-    switch (action_.sense)
-    {
-      case 0:
-        speed = 0.0;
-        break;
-      case 1:
-        std::cout << "Going forward!" << std::endl;
-        // nothing to do, speed is already positive!
-        break;
-      case -1:
-        std::cout << "Going backward!" << std::endl;
-        speed = -1 * speed;
-        break;
-    }
-
-
-    if (action_.sense != 0) // zero means emergency stop
-    {
-      // Limiting accelerations
-      if (previous_sense_ != 0 && previous_sense_ != action_.sense) //if there is a sense change we first stop
-      {
-        std::cout << "Sense change required! --> stopping the robot before to limit acceleration!" << std::endl;
-        speed = 0.0;
-      }
-      else
-      {
-        if (fabs(speed - previous_speed_) > ackermann_control_params_.max_delta_speed) // if the sense is mantained we limit the speed change
-        {
-          if (speed - previous_speed_ > 0)
-            speed = previous_speed_ + ackermann_control_params_.max_delta_speed;
-          else
-            speed = previous_speed_ - ackermann_control_params_.max_delta_speed;
-        }
-      }
-    }
-    else
-    {
-      speed = 0.0; // Emergency stop
-      std::cout << "EMERGENCY STOP!!" << std::endl;
-    }
+    speed = alg_.limitAcceleration(speed, action_.sense, ackermann_control_params_.max_delta_speed);
+    std::cout << "Speed after acceleration limit = " << speed << std::endl;
 
     if (flag_final_goal_)
     {

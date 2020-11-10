@@ -47,6 +47,9 @@
  */
 class AckermannControlAlgorithm
 {
+private:
+  int   previous_sense_;
+  float previous_speed_;
 protected:
   /**
    * \brief define config type
@@ -157,6 +160,12 @@ public:
                                      const CollisionAvoidanceParams collision_avoidance_params,
                                      const AckermannPredictionParams ackermann_prediction_params,
                                      pcl::PointCloud<pcl::PointXYZI>& output);
+
+  float getMaxSpeedAtSteeringAngleInDeg(const float steering_angle,
+                                        const AckermannControlParams ackermann_control_params,
+                                        const RobotParams robot_params);
+
+  float limitAcceleration(const float speed, const int sense, const float max_delta_speed);
 };
 
 #endif

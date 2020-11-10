@@ -3,6 +3,9 @@
 AckermannControlAlgorithm::AckermannControlAlgorithm(void)
 {
   pthread_mutex_init(&this->access_, NULL);
+  const int STOP = 0;
+  previous_sense_ = STOP;
+  previous_speed_ = 0.0;
 }
 
 AckermannControlAlgorithm::~AckermannControlAlgorithm(void)
@@ -20,6 +23,8 @@ void AckermannControlAlgorithm::config_update(Config& config, uint32_t level)
   this->unlock();
 }
 
+// AckermannControlAlgorithm Public API
+
 void AckermannControlAlgorithm::naiveNonObstaclePointsRemover(
     const pcl::PointCloud<pcl::PointXYZI>::Ptr input, const RobotParams robot_params,
     const CollisionAvoidanceParams collision_avoidance_params,
@@ -27,9 +32,11 @@ void AckermannControlAlgorithm::naiveNonObstaclePointsRemover(
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr aux(new pcl::PointCloud<pcl::PointXYZI>);
 
-  float minimum_turning_radius = fabs(robot_params.wheelbase / tan(robot_params.abs_max_steering_angle_deg * M_PI / 180.0)); // fabs not required but anyway
+  float minimum_turning_radius = fabs(
+      robot_params.wheelbase / tan(robot_params.abs_max_steering_angle_deg * M_PI / 180.0)); // fabs not required but anyway
 
-  float abs_max_x_coordinate = minimum_turning_radius + (robot_params.width / 2.0) + collision_avoidance_params.safety_lateral_margin;
+  float abs_max_x_coordinate = minimum_turning_radius + (robot_params.width / 2.0)
+      + collision_avoidance_params.safety_lateral_margin;
 
   float abs_max_y_coordinate = minimum_turning_radius;
 
@@ -56,4 +63,63 @@ void AckermannControlAlgorithm::naiveNonObstaclePointsRemover(
   pass.filter(output);
 }
 
-// AckermannControlAlgorithm Public API
+float AckermannControlAlgorithm::getMaxSpeedAtSteeringAngleInDeg(const float steering_angle,
+                                                                 const AckermannControlParams ackermann_control_params,
+                                                                 const RobotParams robot_params)
+{
+  float k_sp = (ackermann_control_params.max_speed_meters_per_second
+      - ackermann_control_params.min_speed_meters_per_second) / robot_params.abs_max_steering_angle_deg;
+
+  float max_speed_due_to_steering = ackermann_control_params.max_speed_meters_per_second - fabs(steering_angle) * k_sp;
+  return (max_speed_due_to_steering);
+}
+
+float AckermannControlAlgorithm::limitAcceleration(const float speed, const int sense, const float max_delta_speed)
+{
+  std::cout << "Checking if litiming speed is needed!" << std::endl;
+  float speed_acceleration_limited = 0.0;
+
+  const int STOP = 0;
+  if (sense != STOP)
+  {
+    if (previous_sense_ != 0 && previous_sense_ != sense) //if there is a sense change we first stop
+    {
+      std::cout << "Sense change required! --> stopping the robot before to limit acceleration!" << std::endl;
+      speed_acceleration_limited = 0.0;
+    }
+    else
+    {
+      float speed_with_sign = speed * (float)sense; // 1 means forward, -1 means backwards
+      std::cout << "speed_with_sign = " << speed_with_sign << std::endl;
+      std::cout << "previous_speed_ = " << previous_speed_ << std::endl;
+      std::cout << "previous_sense_ = " << previous_sense_ << std::endl;
+      std::cout << "max_delta_speed = " << max_delta_speed << std::endl;
+
+      if (fabs(speed_with_sign - previous_speed_) > max_delta_speed) // if the sense is mantained we limit the speed change
+      {
+        std::cout << "Limitation needed --> applying delta_speed!" << std::endl;
+        if (speed_with_sign - previous_speed_ > 0)
+          speed_acceleration_limited = previous_speed_ + max_delta_speed;
+        else
+          speed_acceleration_limited = previous_speed_ - max_delta_speed;
+      }
+      else
+      {
+        std::cout << "Not limitation needed!" << std::endl;
+        speed_acceleration_limited = speed_with_sign;
+      }
+    }
+  }
+  else
+  {
+    speed_acceleration_limited = 0.0;
+    std::cout << "STOP!!" << std::endl;
+  }
+
+  previous_sense_ = sense;
+  previous_speed_ = speed_acceleration_limited;
+
+  std::cout << "storing speed_acceleration_limited as previous_speed_ = " << previous_speed_ << std::endl;
+
+  return(speed_acceleration_limited);
+}
