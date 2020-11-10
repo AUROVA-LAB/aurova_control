@@ -141,6 +141,10 @@ void AckermannControlAlgNode::mainNodeThread(void)
 
     resetCallbacksFlags();
 
+    // we remove the non-obstacle points
+    alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_ptr_, robot_params_, collision_avoidance_params_,
+                                       ackermann_prediction_params_, *velodyne_pcl_cloud_ptr_);
+
     if (flag_stop_)
     {
       action_.speed = 0.0;
@@ -149,10 +153,6 @@ void AckermannControlAlgNode::mainNodeThread(void)
     }
     else
     {
-      // we remove the non-obstacle points
-      alg_.naiveNonObstaclePointsRemover(velodyne_pcl_cloud_ptr_, robot_params_, collision_avoidance_params_,
-                                         ackermann_prediction_params_, *velodyne_pcl_cloud_ptr_);
-
       //std::cout << "Getting best steering action!" << std::endl;
       action_ = control_->getBestSteeringAction(this->pose_, this->goal_, velodyne_pcl_cloud_ptr_);
 
@@ -160,8 +160,7 @@ void AckermannControlAlgNode::mainNodeThread(void)
       float max_speed_due_to_steering = alg_.getMaxSpeedAtSteeringAngleInDeg(action_.angle, ackermann_control_params_,
                                                                              robot_params_);
 
-      std::cout << "action_.speed = "
-          << action_.speed << "    max_speed_due_to_steering = "
+      std::cout << "action_.speed = " << action_.speed << "    max_speed_due_to_steering = "
           << max_speed_due_to_steering << std::endl;
 
       action_.speed = std::min(action_.speed, max_speed_due_to_steering);
@@ -169,9 +168,11 @@ void AckermannControlAlgNode::mainNodeThread(void)
       std::cout << "selected speed = " << action_.speed << std::endl;
 
       if (flag_final_goal_)
-        action_.speed = alg_.limitSpeedToReachFinalGoal(action_.speed, goal_, pose_, ackermann_control_params_, robot_params_);
+        action_.speed = alg_.limitSpeedToReachFinalGoal(action_.speed, goal_, pose_, ackermann_control_params_,
+                                                        robot_params_);
 
-      float speed_with_sign = alg_.limitAcceleration(action_.speed, action_.sense, ackermann_control_params_.max_delta_speed);
+      float speed_with_sign = alg_.limitAcceleration(action_.speed, action_.sense,
+                                                     ackermann_control_params_.max_delta_speed);
       action_.speed = speed_with_sign; // We have combined the action_.speed and action_.sense in a signed speed (negative = backwards)
 
       std::cout << "Speed after acceleration limit = " << action_.speed << std::endl;
