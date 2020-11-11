@@ -331,6 +331,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
                         goal_msg->pose.pose.orientation.z, goal_msg->pose.pose.orientation.w);
   tf::Matrix3x3 m_pose(q_pose);
   m_pose.getRPY(roll, pitch, yaw_rad);
+
   yaw_deg = yaw_rad * 180.0 / M_PI;
 
   goal_.coordinates.at(3) = yaw_deg;

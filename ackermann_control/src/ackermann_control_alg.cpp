@@ -92,7 +92,7 @@ float AckermannControlAlgorithm::limitSpeedToReachFinalGoal(const float current_
       + (robot_params.max_speed_meters_per_second - robot_params.min_speed_meters_per_second) * k_approx;
 
   float selected_speed = limited_unsigned_speed;
-  if(current_speed < selected_speed)
+  if (current_speed < selected_speed)
     selected_speed = current_speed;
 
   std::cout << "Speed before limitiation = " << current_speed << "    limited speed = " << limited_unsigned_speed
@@ -109,32 +109,24 @@ float AckermannControlAlgorithm::limitAcceleration(const float speed, const int 
   const int STOP = 0;
   if (sense != STOP)
   {
-    if (previous_sense_ != 0 && previous_sense_ != sense) //if there is a sense change we first stop
+    float speed_with_sign = speed * (float)sense; // 1 means forward, -1 means backwards
+    std::cout << "speed_with_sign = " << speed_with_sign << std::endl;
+    std::cout << "previous_speed_ = " << previous_speed_ << std::endl;
+    std::cout << "previous_sense_ = " << previous_sense_ << std::endl;
+    std::cout << "max_delta_speed = " << max_delta_speed << std::endl;
+
+    if (fabs(speed_with_sign - previous_speed_) > max_delta_speed) // if the sense is mantained we limit the speed change
     {
-      std::cout << "Sense change required! --> stopping the robot before to limit acceleration!" << std::endl;
-      speed_acceleration_limited = 0.0;
+      std::cout << "Limitation needed --> applying delta_speed!" << std::endl;
+      if (speed_with_sign - previous_speed_ > 0)
+        speed_acceleration_limited = previous_speed_ + max_delta_speed;
+      else
+        speed_acceleration_limited = previous_speed_ - max_delta_speed;
     }
     else
     {
-      float speed_with_sign = speed * (float)sense; // 1 means forward, -1 means backwards
-      std::cout << "speed_with_sign = " << speed_with_sign << std::endl;
-      std::cout << "previous_speed_ = " << previous_speed_ << std::endl;
-      std::cout << "previous_sense_ = " << previous_sense_ << std::endl;
-      std::cout << "max_delta_speed = " << max_delta_speed << std::endl;
-
-      if (fabs(speed_with_sign - previous_speed_) > max_delta_speed) // if the sense is mantained we limit the speed change
-      {
-        std::cout << "Limitation needed --> applying delta_speed!" << std::endl;
-        if (speed_with_sign - previous_speed_ > 0)
-          speed_acceleration_limited = previous_speed_ + max_delta_speed;
-        else
-          speed_acceleration_limited = previous_speed_ - max_delta_speed;
-      }
-      else
-      {
-        std::cout << "Not limitation needed!" << std::endl;
-        speed_acceleration_limited = speed_with_sign;
-      }
+      std::cout << "Not limitation needed!" << std::endl;
+      speed_acceleration_limited = speed_with_sign;
     }
   }
   else
