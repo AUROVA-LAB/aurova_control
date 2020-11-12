@@ -1,0 +1,4 @@
+bool insert_current_pose_in_local_minima_vector
+bool clear_local_minima_vector
+---
+bool success
