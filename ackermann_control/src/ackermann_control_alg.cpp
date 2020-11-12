@@ -32,13 +32,13 @@ void AckermannControlAlgorithm::naiveNonObstaclePointsRemover(
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr aux(new pcl::PointCloud<pcl::PointXYZI>);
 
-  float minimum_turning_radius = fabs(
-      robot_params.wheelbase / tan(robot_params.abs_max_steering_angle_deg * M_PI / 180.0)); // fabs not required but anyway
+  float trajectory_length = robot_params.max_speed_meters_per_second * ackermann_prediction_params.temporal_horizon;
+  float abs_max_x_coordinate = trajectory_length; // the maximum variation in x axis occurs with steering = 0 and is equal to the trajectory length
 
-  float abs_max_x_coordinate = minimum_turning_radius + (robot_params.width / 2.0)
-      + collision_avoidance_params.safety_lateral_margin;
-
-  float abs_max_y_coordinate = minimum_turning_radius;
+  float steering_radians = robot_params.abs_max_steering_angle_deg * (M_PI / 180.0);
+  float r = robot_params.wheelbase / tan(steering_radians);
+  float deltaBeta = trajectory_length / fabs(r);
+  float abs_max_y_coordinate = r * (1.0 - cos(deltaBeta));
 
   // Create the filtering object
   pcl::PassThrough < pcl::PointXYZI > pass;
