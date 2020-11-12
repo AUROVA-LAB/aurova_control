@@ -37,6 +37,7 @@ find_package(PCL REQUIRED)
  add_service_files(
    FILES
    SetNavigationMode.srv
+   ManageLocalMinimaVector.srv
  )
 
 ## Generate actions in the 'action' folder

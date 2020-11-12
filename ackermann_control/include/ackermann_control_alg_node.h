@@ -31,6 +31,7 @@
 // [publisher subscriber headers]
 
 // [service client headers]
+#include <ackermann_control/ManageLocalMinimaVector.h>
 #include <ackermann_control/SetNavigationMode.h>
 
 // [action server client headers]
@@ -116,6 +117,12 @@ private:
   // [subscriber attributes]
 
   // [service attributes]
+    ros::ServiceServer manage_local_minima_vector_server_;
+    bool manage_local_minima_vectorCallback(ackermann_control::ManageLocalMinimaVector::Request &req, ackermann_control::ManageLocalMinimaVector::Response &res);
+    pthread_mutex_t manage_local_minima_vector_mutex_;
+    void manage_local_minima_vector_mutex_enter(void);
+    void manage_local_minima_vector_mutex_exit(void);
+
     ros::ServiceServer set_navigation_mode_server_;
     bool set_navigation_modeCallback(ackermann_control::SetNavigationMode::Request &req, ackermann_control::SetNavigationMode::Response &res);
     pthread_mutex_t set_navigation_mode_mutex_;

@@ -106,6 +106,9 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   // [init subscribers]
 
   // [init services]
+  this->manage_local_minima_vector_server_ = this->public_node_handle_.advertiseService("manage_local_minima_vector", &AckermannControlAlgNode::manage_local_minima_vectorCallback, this);
+  pthread_mutex_init(&this->manage_local_minima_vector_mutex_,NULL);
+
   this->set_navigation_mode_server_ = this->public_node_handle_.advertiseService(
       "set_navigation_mode", &AckermannControlAlgNode::set_navigation_modeCallback, this);
   pthread_mutex_init(&this->set_navigation_mode_mutex_, NULL);
@@ -120,6 +123,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
 AckermannControlAlgNode::~AckermannControlAlgNode(void)
 {
   // [free dynamic memory]
+  pthread_mutex_destroy(&this->manage_local_minima_vector_mutex_);
   pthread_mutex_destroy(&this->set_navigation_mode_mutex_);
   pthread_mutex_destroy(&this->thread_mutex_);
 }
@@ -393,6 +397,41 @@ void AckermannControlAlgNode::thread_mutex_exit(void)
 }
 
 /*  [service callbacks] */
+bool AckermannControlAlgNode::manage_local_minima_vectorCallback(ackermann_control::ManageLocalMinimaVector::Request &req, ackermann_control::ManageLocalMinimaVector::Response &res)
+{
+  ROS_INFO("AckermannControlAlgNode::manage_local_minima_vectorCallback: New Request Received!");
+
+  //use appropiate mutex to shared variables if necessary
+  this->alg_.lock();
+  this->manage_local_minima_vector_mutex_enter();
+
+  ROS_INFO("AckermannControlAlgNode::manage_local_minima_vectorCallback: Processing New Request!");
+
+  if(req.insert_current_pose_in_local_minima_vector)
+    control_->insertCurrentPoseInLocalMinimaVector();
+
+  if(req.clear_local_minima_vector)
+    control_->clearLocalMinimaVector();
+
+  res.success = true;
+
+  //unlock previously blocked shared variables
+  this->manage_local_minima_vector_mutex_exit();
+  this->alg_.unlock();
+
+  return true;
+}
+
+void AckermannControlAlgNode::manage_local_minima_vector_mutex_enter(void)
+{
+  pthread_mutex_lock(&this->manage_local_minima_vector_mutex_);
+}
+
+void AckermannControlAlgNode::manage_local_minima_vector_mutex_exit(void)
+{
+  pthread_mutex_unlock(&this->manage_local_minima_vector_mutex_);
+}
+
 bool AckermannControlAlgNode::set_navigation_modeCallback(ackermann_control::SetNavigationMode::Request &req,
                                                           ackermann_control::SetNavigationMode::Response &res)
 {
