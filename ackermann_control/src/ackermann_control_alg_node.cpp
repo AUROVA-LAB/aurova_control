@@ -164,12 +164,12 @@ void AckermannControlAlgNode::mainNodeThread(void)
       float max_speed_due_to_steering = alg_.getMaxSpeedAtSteeringAngleInDeg(action_.angle, ackermann_control_params_,
                                                                              robot_params_);
 
-      //std::cout << "action_.speed = " << action_.speed << "    max_speed_due_to_steering = "
-      //    << max_speed_due_to_steering << std::endl;
+      std::cout << "action_.speed = " << action_.speed << "    max_speed_due_to_steering = "
+          << max_speed_due_to_steering << std::endl;
 
       action_.speed = std::min(action_.speed, max_speed_due_to_steering);
 
-      //std::cout << "selected speed = " << action_.speed << std::endl;
+      std::cout << "selected speed = " << action_.speed << std::endl;
 
       if (flag_final_goal_)
         action_.speed = alg_.limitSpeedToReachFinalGoal(action_.speed, goal_, pose_, ackermann_control_params_,
@@ -177,9 +177,10 @@ void AckermannControlAlgNode::mainNodeThread(void)
 
       float speed_with_sign = alg_.limitAcceleration(action_.speed, action_.sense,
                                                      ackermann_control_params_.max_delta_speed);
-      //action_.speed = speed_with_sign; // We have combined the action_.speed and action_.sense in a signed speed (negative = backwards)
 
-      //std::cout << "Speed after acceleration limit = " << action_.speed << std::endl;
+      action_.speed = speed_with_sign; // We have combined the action_.speed and action_.sense in a signed speed (negative = backwards)
+
+      std::cout << "Speed after acceleration limit = " << action_.speed << std::endl;
     }
 
     ROS_INFO("control -> steering: %f, speed: %f", action_.angle, action_.speed);
