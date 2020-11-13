@@ -103,29 +103,29 @@ float AckermannControlAlgorithm::limitSpeedToReachFinalGoal(const float current_
 
 float AckermannControlAlgorithm::limitAcceleration(const float speed, const int sense, const float max_delta_speed)
 {
-  std::cout << "Checking if litiming speed is needed!" << std::endl;
+  //std::cout << "Checking if litiming speed is needed!" << std::endl;
   float speed_acceleration_limited = 0.0;
 
   const int STOP = 0;
   if (sense != STOP)
   {
     float speed_with_sign = speed * (float)sense; // 1 means forward, -1 means backwards
-    std::cout << "speed_with_sign = " << speed_with_sign << std::endl;
-    std::cout << "previous_speed_ = " << previous_speed_ << std::endl;
-    std::cout << "previous_sense_ = " << previous_sense_ << std::endl;
-    std::cout << "max_delta_speed = " << max_delta_speed << std::endl;
+    //std::cout << "speed_with_sign = " << speed_with_sign << std::endl;
+    //std::cout << "previous_speed_ = " << previous_speed_ << std::endl;
+    //std::cout << "previous_sense_ = " << previous_sense_ << std::endl;
+    //std::cout << "max_delta_speed = " << max_delta_speed << std::endl;
 
     if (fabs(speed_with_sign - previous_speed_) > max_delta_speed) // if the sense is mantained we limit the speed change
     {
-      std::cout << "Limitation needed --> applying delta_speed!" << std::endl;
-      if (speed_with_sign - previous_speed_ > 0)
+      //std::cout << "Limitation needed --> applying delta_speed!" << std::endl;
+      if (speed_with_sign - previous_speed_ > 0.0)
         speed_acceleration_limited = previous_speed_ + max_delta_speed;
       else
         speed_acceleration_limited = previous_speed_ - max_delta_speed;
     }
     else
     {
-      std::cout << "Not limitation needed!" << std::endl;
+      //std::cout << "Not limitation needed!" << std::endl;
       speed_acceleration_limited = speed_with_sign;
     }
   }
@@ -138,7 +138,7 @@ float AckermannControlAlgorithm::limitAcceleration(const float speed, const int 
   previous_sense_ = sense;
   previous_speed_ = speed_acceleration_limited;
 
-  std::cout << "storing speed_acceleration_limited as previous_speed_ = " << previous_speed_ << std::endl;
+  //std::cout << "storing speed_acceleration_limited as previous_speed_ = " << previous_speed_ << std::endl;
 
   return (speed_acceleration_limited);
 }
