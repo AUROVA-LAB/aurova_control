@@ -22,6 +22,7 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   this->public_node_handle_.getParam("/ackermann_control/t_velocity", t_velocity);
   this->public_node_handle_.getParam("/ackermann_control/v_min", this->v_min_);
   this->public_node_handle_.getParam("/ackermann_control/v_max", this->v_max_);
+  this->public_node_handle_.getParam("/ackermann_control/rad_reached", this->rad_reached_);
 
   // class constructor for control
   this->control_ = new Steering_Control(this->params_, t_length, delta_time, delta_angle, t_velocity);
@@ -42,8 +43,8 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   this->twist_publisher_ = this->public_node_handle_.advertise < geometry_msgs::Twist > ("/cmd_vel", 1);
 
   // [init subscribers]
-  this->odom_subscriber_ = this->public_node_handle_.subscribe("/odom", 1, &AckermannControlAlgNode::cb_getOdomMsg, this);
-  this->pose_subscriber_ = this->public_node_handle_.subscribe("/pose_sim", 1, &AckermannControlAlgNode::cb_getPoseMsg, this);
+  //this->odom_subscriber_ = this->public_node_handle_.subscribe("/odom", 1, &AckermannControlAlgNode::cb_getOdomMsg, this);
+  this->pose_subscriber_ = this->public_node_handle_.subscribe("/pose_plot", 1, &AckermannControlAlgNode::cb_getPoseMsg, this);
   this->goal_subscriber_ = this->public_node_handle_.subscribe("/semilocal_goal", 1,
                                                                &AckermannControlAlgNode::cb_getGoalMsg, this);
 
@@ -102,15 +103,19 @@ void AckermannControlAlgNode::mainNodeThread(void)
     ROS_INFO("control -> angular: %f, linear: %f", this->twist_state_.angular.z, speed);
     */
     //////////////////////////////////////////////////////
-
-    // [fill srv structure and make request to the server]
- 
-    // [fill action structure and make request to the action server]
-
-    // [publish messages]
-    this->ackermann_publisher_.publish(this->ackermann_state_.drive);
-    this->twist_publisher_.publish(this->twist_state_);
   }
+  else
+  {
+    this->ackermann_state_.drive.steering_angle = 0.0;
+    this->ackermann_state_.drive.speed = 0.0;
+    
+    this->twist_state_.linear.x = 0.0;
+    this->twist_state_.angular.z = 0.0;
+  }
+  
+  // [publish messages]
+  this->ackermann_publisher_.publish(this->ackermann_state_.drive);
+  this->twist_publisher_.publish(this->twist_state_);
 
 }
 
@@ -223,7 +228,10 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   this->goal_.matrix[2][2] = goal_msg->pose.covariance[14];
   this->goal_.matrix[3][3] = goal_msg->pose.covariance[35];
   
-  this->flag_goal_ = true;
+  
+  float distance = sqrt(pow(goal_base.point.x, 2) + pow(goal_base.point.y, 2));
+  if (distance <= this->rad_reached_) this->flag_goal_ = false;
+  else this->flag_goal_ = true;
 
   this->alg_.unlock();
 }
