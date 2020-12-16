@@ -23,6 +23,8 @@ AckermannControlAlgNode::AckermannControlAlgNode(void) :
   this->public_node_handle_.getParam("/ackermann_control/v_min", this->v_min_);
   this->public_node_handle_.getParam("/ackermann_control/v_max", this->v_max_);
   this->public_node_handle_.getParam("/ackermann_control/rad_reached", this->rad_reached_);
+  this->public_node_handle_.getParam("/ackermann_control/flag_prop", this->flag_prop_);
+  this->public_node_handle_.getParam("/ackermann_control/kp", this->kp_);
 
   // class constructor for control
   this->control_ = new Steering_Control(this->params_, t_length, delta_time, delta_angle, t_velocity);
@@ -66,52 +68,46 @@ AckermannControlAlgNode::~AckermannControlAlgNode(void)
 
 void AckermannControlAlgNode::mainNodeThread(void)
 {
+  static float speed_prev = 0.0;
 
-   if (this->flag_odom_ && this->flag_goal_)
-   {
+  float speed_current;
+  float k_sp = (this->v_max_ - this->v_min_) / this->params_.maxAngle;
 
+  if (this->flag_odom_ && this->flag_goal_)
+  {
     // [fill msg structures]
-    float k_sp = (this->v_max_ - this->v_min_) / this->params_.maxAngle;
-    double speed = 0.0;
     this->direction_ = this->control_->getBestSteering(this->pose_, this->goal_);
 
     switch (this->direction_.sense)
     {
       case 0:
-        speed = 0.0;
+        speed_current = 0.0;
         break;
       case 1:
-        speed = this->v_max_ - fabs(this->direction_.angle) * k_sp;
+        speed_current = this->v_max_ - fabs(this->direction_.angle) * k_sp;
         break;
       case -1:
-        speed = -1 * (this->v_max_ - fabs(this->direction_.angle) * k_sp);
+        speed_current = -1 * (this->v_max_ - fabs(this->direction_.angle) * k_sp);
         break;
-    }
-    
-    this->ackermann_state_.drive.steering_angle = (this->direction_.angle*PI)/180.0;
-    this->ackermann_state_.drive.speed = speed;
-    
-    this->twist_state_.linear.x = speed;
-    this->twist_state_.angular.z = (speed / this->params_.l) * sin((this->direction_.angle*PI)/180.0);
-    
-    //////////////////////////////////////////////////////
-    //// DEBUG
-    /*
-    ROS_INFO("goal -> x: %f, y: %f, z: %f, yaw: %f", this->goal_.coordinates[0], this->goal_.coordinates[1],
-                                                     this->goal_.coordinates[2], this->goal_.coordinates[3]);
-    ROS_INFO("control -> steering: %f, speed: %f", this->direction_.angle, speed);
-    ROS_INFO("control -> angular: %f, linear: %f", this->twist_state_.angular.z, speed);
-    */
-    //////////////////////////////////////////////////////
+    } 
   }
   else
   {
-    this->ackermann_state_.drive.steering_angle = 0.0;
-    this->ackermann_state_.drive.speed = 0.0;
-    
-    this->twist_state_.linear.x = 0.0;
-    this->twist_state_.angular.z = 0.0;
+    this->direction_.angle = 0.0;
+    speed_current = 0.0;
   }
+  
+  //proportional filtration
+  if (this->flag_prop_)
+  {
+    speed_current = speed_prev + (speed_current - speed_prev) * this->kp_;
+    speed_prev = speed_current;
+  }
+  
+  this->ackermann_state_.drive.steering_angle = (this->direction_.angle*PI)/180.0;
+  this->ackermann_state_.drive.speed = speed_current;
+  this->twist_state_.linear.x = speed_current;
+  this->twist_state_.angular.z = (speed_current / this->params_.l) * sin((this->direction_.angle*PI)/180.0);
   
   // [publish messages]
   this->ackermann_publisher_.publish(this->ackermann_state_.drive);

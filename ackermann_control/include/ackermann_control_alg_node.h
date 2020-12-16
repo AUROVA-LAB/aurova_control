@@ -47,6 +47,8 @@ private:
   float v_min_;
   float v_max_;
   float rad_reached_;
+  float kp_;
+  bool flag_prop_;
   bool flag_odom_;
   bool flag_goal_;
   ackermann_msgs::AckermannDriveStamped ackermann_state_;
