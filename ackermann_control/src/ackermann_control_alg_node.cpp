@@ -218,7 +218,7 @@ void AckermannControlAlgNode::cb_getGoalMsg(const geometry_msgs::PoseWithCovaria
   this->goal_.coordinates.at(0) = goal_base.point.x;
   this->goal_.coordinates.at(1) = goal_base.point.y;
   this->goal_.coordinates.at(2) = goal_base.point.z;
-  this->goal_.coordinates.at(3) = yaw;
+  this->goal_.coordinates.at(3) = yaw_to_pose;
   this->goal_.matrix[0][0] = goal_msg->pose.covariance[0];
   this->goal_.matrix[1][1] = goal_msg->pose.covariance[7];
   this->goal_.matrix[2][2] = goal_msg->pose.covariance[14];
