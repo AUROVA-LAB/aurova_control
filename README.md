@@ -1,4 +1,4 @@
-# aurova_control
+# aurova_control (DEPRECATED!!)
 This is a metapackage that contains different packages that perform local control. This metapackage can contain controllers for different kind of vehicle. Compiling this metapackage into ROS will compile all the packages at once. This metapackage is grouped as a project for eclipse C++. Each package contains a "packagename_doxygen_config" configuration file for generate doxygen documentation. The packages contained in this metapackage are:
 
 **control_demo**
